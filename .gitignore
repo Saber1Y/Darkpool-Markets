@@ -1,0 +1,14 @@
+node_modules
+.pnpm-store
+.DS_Store
+.env
+.env.local
+.env.*.local
+dist
+build
+.next
+coverage
+artifacts
+cache
+typechain-types
+pnpm-lock.yaml
