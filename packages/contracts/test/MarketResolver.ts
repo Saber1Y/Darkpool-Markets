@@ -11,6 +11,11 @@ describe("MarketResolver", function () {
 
     const currentBlock = await ethers.provider.getBlock("latest");
     const deadline = BigInt((currentBlock?.timestamp ?? 0) + 60);
+    const marketId = 1n;
+
+    const vaultFactory = await ethers.getContractFactory("MarketVault");
+    const vault = await vaultFactory.connect(owner).deploy(owner.address, owner.address, 200);
+    await vault.waitForDeployment();
 
     const marketFactory = await ethers.getContractFactory("PredictionMarket");
     const market = await marketFactory
@@ -20,11 +25,13 @@ describe("MarketResolver", function () {
         "ipfs://btc-market",
         deadline,
         creator.address,
-        await resolver.getAddress()
+        await resolver.getAddress(),
+        await vault.getAddress(),
+        marketId
       );
     await market.waitForDeployment();
 
-    return { owner, creator, delegatedResolver, outsider, resolver, market };
+    return { owner, creator, delegatedResolver, outsider, resolver, market, vault, marketId };
   }
 
   it("lets approved resolver publish snapshot and resolve after expiry", async function () {

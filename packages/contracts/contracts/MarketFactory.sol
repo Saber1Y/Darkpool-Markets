@@ -1,17 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 pragma solidity ^0.8.24;
 
-/// @title MarketFactory
-/// @notice Registry/factory layer for prediction markets.
-/// @dev Keep metadata public here. Confidential logic belongs in the market contracts.
-contract MarketFactory {
-    enum MarketStatus {
-        ACTIVE,
-        CLOSED,
-        RESOLVED,
-        CANCELLED
-    }
+import {PredictionMarket} from "./PredictionMarket.sol";
 
+/// @title MarketFactory
+/// @notice Deploys and indexes prediction markets for frontend/indexer discovery.
+/// @dev No encrypted math is performed here.
+contract MarketFactory {
     struct MarketDetails {
         uint256 marketId;
         address creator;
@@ -20,19 +15,17 @@ contract MarketFactory {
         string metadataURI;
         uint64 deadline;
         uint64 createdAt;
-        MarketStatus status;
-        bool outcome;
-        bool outcomeSet;
     }
 
     error QuestionRequired();
     error DeadlineInPast();
     error MarketNotFound();
-    error OnlyCreator();
-    error InvalidMarketAddress();
-    error MarketAddressAlreadyLinked();
-    error InvalidStatusTransition();
-    error MarketStillActive();
+    error InvalidResolver();
+    error InvalidVault();
+    error InvalidPaginationLimit();
+
+    address public immutable resolver;
+    address public immutable vault;
 
     uint256 private _nextMarketId = 1;
     mapping(uint256 => MarketDetails) private _marketsById;
@@ -41,92 +34,54 @@ contract MarketFactory {
 
     event MarketCreated(
         uint256 indexed marketId,
+        address indexed marketAddress,
         address indexed creator,
         string question,
         uint64 deadline,
         string metadataURI
     );
-    event MarketAddressLinked(uint256 indexed marketId, address indexed marketAddress);
-    event MarketStatusUpdated(uint256 indexed marketId, MarketStatus previousStatus, MarketStatus newStatus);
-    event MarketResolved(uint256 indexed marketId, bool outcome);
+
+    constructor(address _resolver, address _vault) {
+        if (_resolver == address(0)) revert InvalidResolver();
+        if (_vault == address(0)) revert InvalidVault();
+        resolver = _resolver;
+        vault = _vault;
+    }
 
     function createMarket(
         string calldata question,
         uint64 deadline,
         string calldata metadataURI
-    ) external returns (uint256 marketId) {
+    ) external returns (uint256 marketId, address marketAddress) {
         if (bytes(question).length == 0) revert QuestionRequired();
         if (deadline <= block.timestamp) revert DeadlineInPast();
 
         marketId = _nextMarketId++;
+        PredictionMarket market = new PredictionMarket(
+            question,
+            metadataURI,
+            deadline,
+            msg.sender,
+            resolver,
+            vault,
+            marketId
+        );
+        marketAddress = address(market);
+
         _marketsById[marketId] = MarketDetails({
             marketId: marketId,
             creator: msg.sender,
-            marketAddress: address(0),
+            marketAddress: marketAddress,
             question: question,
             metadataURI: metadataURI,
             deadline: deadline,
-            createdAt: uint64(block.timestamp),
-            status: MarketStatus.ACTIVE,
-            outcome: false,
-            outcomeSet: false
+            createdAt: uint64(block.timestamp)
         });
 
         _creatorMarketIds[msg.sender].push(marketId);
         _allMarketIds.push(marketId);
 
-        emit MarketCreated(marketId, msg.sender, question, deadline, metadataURI);
-    }
-
-    function linkMarketAddress(uint256 marketId, address marketAddress) external {
-        MarketDetails storage market = _marketOrRevert(marketId);
-        if (msg.sender != market.creator) revert OnlyCreator();
-        if (marketAddress == address(0)) revert InvalidMarketAddress();
-        if (market.marketAddress != address(0)) revert MarketAddressAlreadyLinked();
-
-        market.marketAddress = marketAddress;
-        emit MarketAddressLinked(marketId, marketAddress);
-    }
-
-    function closeMarket(uint256 marketId) external {
-        MarketDetails storage market = _marketOrRevert(marketId);
-        if (msg.sender != market.creator) revert OnlyCreator();
-        if (market.status != MarketStatus.ACTIVE) revert InvalidStatusTransition();
-        if (block.timestamp < market.deadline) revert MarketStillActive();
-
-        MarketStatus previousStatus = market.status;
-        market.status = MarketStatus.CLOSED;
-        emit MarketStatusUpdated(marketId, previousStatus, MarketStatus.CLOSED);
-    }
-
-    function cancelMarket(uint256 marketId) external {
-        MarketDetails storage market = _marketOrRevert(marketId);
-        if (msg.sender != market.creator) revert OnlyCreator();
-        if (market.status != MarketStatus.ACTIVE) revert InvalidStatusTransition();
-
-        MarketStatus previousStatus = market.status;
-        market.status = MarketStatus.CANCELLED;
-        emit MarketStatusUpdated(marketId, previousStatus, MarketStatus.CANCELLED);
-    }
-
-    /// @notice Resolve a market outcome once it is closed (or naturally expired).
-    function resolveMarket(uint256 marketId, bool outcome) external {
-        MarketDetails storage market = _marketOrRevert(marketId);
-        if (msg.sender != market.creator) revert OnlyCreator();
-        if (market.status == MarketStatus.RESOLVED || market.status == MarketStatus.CANCELLED) {
-            revert InvalidStatusTransition();
-        }
-        if (market.status == MarketStatus.ACTIVE && block.timestamp < market.deadline) {
-            revert MarketStillActive();
-        }
-
-        MarketStatus previousStatus = market.status;
-        market.status = MarketStatus.RESOLVED;
-        market.outcome = outcome;
-        market.outcomeSet = true;
-
-        emit MarketStatusUpdated(marketId, previousStatus, MarketStatus.RESOLVED);
-        emit MarketResolved(marketId, outcome);
+        emit MarketCreated(marketId, marketAddress, msg.sender, question, deadline, metadataURI);
     }
 
     function getMarket(uint256 marketId) external view returns (MarketDetails memory) {
@@ -145,8 +100,9 @@ contract MarketFactory {
         return _nextMarketId;
     }
 
-    /// @notice Paginated market id listing for dashboard/indexer use.
     function listMarketIds(uint256 offset, uint256 limit) external view returns (uint256[] memory ids) {
+        if (limit == 0) revert InvalidPaginationLimit();
+
         uint256 total = _allMarketIds.length;
         if (offset >= total) return new uint256[](0);
 
@@ -159,7 +115,23 @@ contract MarketFactory {
         }
     }
 
-    function _marketOrRevert(uint256 marketId) internal view returns (MarketDetails storage market) {
+    /// @notice Query-friendly paginator returning full market metadata.
+    function listMarkets(uint256 offset, uint256 limit) external view returns (MarketDetails[] memory markets) {
+        if (limit == 0) revert InvalidPaginationLimit();
+
+        uint256 total = _allMarketIds.length;
+        if (offset >= total) return new MarketDetails[](0);
+
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+
+        markets = new MarketDetails[](end - offset);
+        for (uint256 i = offset; i < end; i++) {
+            markets[i - offset] = _marketsById[_allMarketIds[i]];
+        }
+    }
+
+    function _marketOrRevert(uint256 marketId) internal view returns (MarketDetails memory market) {
         market = _marketsById[marketId];
         if (market.creator == address(0)) revert MarketNotFound();
     }

@@ -11,6 +11,7 @@ contract MarketVault {
     error InvalidAmount();
     error InsufficientEscrow();
     error TransferFailed();
+    error NotMarketOperator();
 
     event Deposited(uint256 indexed marketId, address indexed from, uint256 amount);
     event PayoutSent(
@@ -22,6 +23,7 @@ contract MarketVault {
     );
     event FeeRecipientUpdated(address indexed previousRecipient, address indexed newRecipient);
     event FeeBpsUpdated(uint16 previousFeeBps, uint16 newFeeBps);
+    event MarketOperatorUpdated(uint256 indexed marketId, address indexed operator, bool allowed);
 
     uint16 public constant MAX_BPS = 10_000;
 
@@ -30,6 +32,7 @@ contract MarketVault {
     uint16 public platformFeeBps;
 
     mapping(uint256 => uint256) public escrowByMarket;
+    mapping(uint256 => mapping(address => bool)) public marketOperators;
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert OnlyOwner();
@@ -59,6 +62,30 @@ contract MarketVault {
         address payable recipient,
         uint256 grossAmount
     ) external onlyOwner {
+        _disburse(marketId, recipient, grossAmount);
+    }
+
+    /// @notice Pays winner(s) from market escrow, callable by authorized market contracts.
+    function disbursePayoutFromMarket(
+        uint256 marketId,
+        address payable recipient,
+        uint256 grossAmount
+    ) external {
+        if (!marketOperators[marketId][msg.sender]) revert NotMarketOperator();
+        _disburse(marketId, recipient, grossAmount);
+    }
+
+    function setMarketOperator(uint256 marketId, address operator, bool allowed) external onlyOwner {
+        if (operator == address(0)) revert InvalidRecipient();
+        marketOperators[marketId][operator] = allowed;
+        emit MarketOperatorUpdated(marketId, operator, allowed);
+    }
+
+    function _disburse(
+        uint256 marketId,
+        address payable recipient,
+        uint256 grossAmount
+    ) internal {
         if (recipient == address(0)) revert InvalidRecipient();
         if (grossAmount == 0) revert InvalidAmount();
 

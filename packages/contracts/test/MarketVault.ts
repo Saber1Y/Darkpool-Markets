@@ -36,4 +36,16 @@ describe("MarketVault", function () {
       contract.connect(alice).disbursePayout(1, bob.address, ethers.parseEther("0.1"))
     ).to.be.revertedWithCustomError(contract, "OnlyOwner");
   });
+
+  it("allows authorized market operator to disburse payout", async function () {
+    const { contract, owner, alice, bob } = await deployFixture();
+    const marketId = 7n;
+
+    await contract.connect(alice).deposit(marketId, { value: ethers.parseEther("1") });
+    await contract.connect(owner).setMarketOperator(marketId, owner.address, true);
+
+    await expect(
+      contract.connect(owner).disbursePayoutFromMarket(marketId, bob.address, ethers.parseEther("0.2"))
+    ).to.not.be.reverted;
+  });
 });

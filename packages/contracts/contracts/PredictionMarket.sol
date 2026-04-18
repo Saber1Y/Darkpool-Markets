@@ -4,6 +4,11 @@ pragma solidity ^0.8.24;
 import {FHE, ebool, euint32, externalEbool, externalEuint32} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
+interface IMarketVault {
+    function deposit(uint256 marketId) external payable;
+    function disbursePayoutFromMarket(uint256 marketId, address payable recipient, uint256 grossAmount) external;
+}
+
 /// @title PredictionMarket
 /// @notice fhEVM-powered market where side/amount are stored as encrypted values.
 contract PredictionMarket is ZamaEthereumConfig {
@@ -36,13 +41,19 @@ contract PredictionMarket is ZamaEthereumConfig {
     error PositionAlreadyExists();
     error PositionNotFound();
     error AlreadyClaimed();
+    error ClaimNotRequested();
+    error ClaimAlreadySettled();
     error InvalidConfidenceBps();
+    error InvalidVault();
+    error InvalidMarketId();
 
     string public question;
     string public metadataURI;
     uint64 public deadline;
     address public creator;
     address public resolver;
+    uint256 public marketId;
+    IMarketVault public vault;
     MarketStatus public status;
     uint64 public participantCount;
 
@@ -59,6 +70,7 @@ contract PredictionMarket is ZamaEthereumConfig {
     euint32 private _noPool;
 
     mapping(address => Position) private _positions;
+    mapping(address => bool) public claimSettled;
 
     event BetPlaced(address indexed user);
     event BetIncreased(address indexed user);
@@ -68,6 +80,8 @@ contract PredictionMarket is ZamaEthereumConfig {
     event SnapshotPublished(uint16 confidenceYesBps, int16 confidenceDeltaBps24h, SignalStrength signalStrength);
     event PoolAccessGranted(address indexed account);
     event Claimed(address indexed user);
+    event ClaimSettled(address indexed user, bool winner, uint256 payoutWei);
+    event StakeEscrowed(address indexed user, uint256 amountWei);
 
     modifier onlyCreator() {
         if (msg.sender != creator) revert NotCreator();
@@ -89,16 +103,22 @@ contract PredictionMarket is ZamaEthereumConfig {
         string memory _metadataURI,
         uint64 _deadline,
         address _creator,
-        address _resolver
+        address _resolver,
+        address _vault,
+        uint256 _marketId
     ) {
         if (bytes(_question).length == 0) revert QuestionRequired();
         if (_deadline <= block.timestamp) revert DeadlineInPast();
+        if (_vault == address(0)) revert InvalidVault();
+        if (_marketId == 0) revert InvalidMarketId();
 
         question = _question;
         metadataURI = _metadataURI;
         deadline = _deadline;
         creator = _creator;
         resolver = _resolver;
+        vault = IMarketVault(_vault);
+        marketId = _marketId;
         status = MarketStatus.ACTIVE;
         signalStrength = SignalStrength.LOW;
     }
@@ -108,7 +128,7 @@ contract PredictionMarket is ZamaEthereumConfig {
         externalEbool inputSideYes,
         externalEuint32 inputAmount,
         bytes calldata inputProof
-    ) external onlyActive {
+    ) external payable onlyActive {
         if (block.timestamp >= deadline) revert MarketStillActive();
 
         Position storage position = _positions[msg.sender];
@@ -136,6 +156,11 @@ contract PredictionMarket is ZamaEthereumConfig {
         // User ACL for client-side decryption.
         FHE.allow(position.sideYes, msg.sender);
         FHE.allow(position.amount, msg.sender);
+
+        if (msg.value > 0) {
+            vault.deposit{value: msg.value}(marketId);
+            emit StakeEscrowed(msg.sender, msg.value);
+        }
 
         emit BetPlaced(msg.sender);
     }
@@ -217,7 +242,6 @@ contract PredictionMarket is ZamaEthereumConfig {
     }
 
     /// @notice For now this only marks claim and returns encrypted winner flag.
-    /// @dev Payout transfers are intentionally omitted until vault wiring is added.
     function claim() external returns (ebool isWinner) {
         if (status != MarketStatus.RESOLVED || !outcomeSet) revert InvalidStatus();
 
@@ -232,5 +256,21 @@ contract PredictionMarket is ZamaEthereumConfig {
         FHE.allow(isWinner, msg.sender);
 
         emit Claimed(msg.sender);
+    }
+
+    /// @notice Settles a user claim and triggers vault payout when winner.
+    /// @dev Winner verification is expected to happen off-chain from decrypted claim proof.
+    function settleClaim(address payable user, bool winner, uint256 payoutWei) external onlyResolverOrCreator {
+        Position storage position = _positions[user];
+        if (!position.exists) revert PositionNotFound();
+        if (!position.claimed) revert ClaimNotRequested();
+        if (claimSettled[user]) revert ClaimAlreadySettled();
+
+        claimSettled[user] = true;
+        if (winner && payoutWei > 0) {
+            vault.disbursePayoutFromMarket(marketId, user, payoutWei);
+        }
+
+        emit ClaimSettled(user, winner, payoutWei);
     }
 }

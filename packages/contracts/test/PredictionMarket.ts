@@ -4,56 +4,111 @@ import { ethers, fhevm } from "hardhat";
 
 describe("PredictionMarket", function () {
   async function deployFixture() {
-    const [creator, alice, resolver] = await ethers.getSigners();
+    const [owner, alice, resolver, feeRecipient] = await ethers.getSigners();
     const currentBlock = await ethers.provider.getBlock("latest");
     const deadline = BigInt((currentBlock?.timestamp ?? 0) + 3600);
+    const marketId = 1n;
 
-    const contractFactory = await ethers.getContractFactory("PredictionMarket");
-    const contract = await contractFactory
-      .connect(creator)
-      .deploy("Will ETH close above 5k?", "ipfs://market-meta", deadline, creator.address, resolver.address);
-    await contract.waitForDeployment();
+    const vaultFactory = await ethers.getContractFactory("MarketVault");
+    const vault = await vaultFactory.connect(owner).deploy(owner.address, feeRecipient.address, 200); // 2%
+    await vault.waitForDeployment();
+
+    const marketFactory = await ethers.getContractFactory("PredictionMarket");
+    const market = await marketFactory
+      .connect(owner)
+      .deploy(
+        "Will ETH close above 5k?",
+        "ipfs://market-meta",
+        deadline,
+        owner.address,
+        resolver.address,
+        await vault.getAddress(),
+        marketId
+      );
+    await market.waitForDeployment();
+
+    await vault.connect(owner).setMarketOperator(marketId, await market.getAddress(), true);
 
     return {
-      creator,
+      owner,
       alice,
       resolver,
-      contract,
-      contractAddress: await contract.getAddress()
+      feeRecipient,
+      vault,
+      market,
+      marketAddress: await market.getAddress(),
+      marketId
     };
   }
 
-  it("stores encrypted bets and updates encrypted pools", async function () {
-    const { creator, alice, contract, contractAddress } = await deployFixture();
-    await fhevm.assertCoprocessorInitialized(contract, "PredictionMarket");
+  it("stores encrypted bets, updates encrypted pools, and escrows stake", async function () {
+    const { owner, alice, market, marketAddress, vault, marketId } = await deployFixture();
+    await fhevm.assertCoprocessorInitialized(market, "PredictionMarket");
 
-    // Alice places initial bet: YES with 25 units.
-    const initialBet = await fhevm.createEncryptedInput(contractAddress, alice.address).addBool(true).add32(25).encrypt();
-    let tx = await contract.connect(alice).placeBet(initialBet.handles[0], initialBet.handles[1], initialBet.inputProof);
+    // Alice places initial bet: YES with 25 encrypted units + 1 ETH stake escrow.
+    const initialBet = await fhevm.createEncryptedInput(marketAddress, alice.address).addBool(true).add32(25).encrypt();
+    let tx = await market.connect(alice).placeBet(initialBet.handles[0], initialBet.handles[1], initialBet.inputProof, {
+      value: ethers.parseEther("1")
+    });
     await tx.wait();
 
-    const [encSide, encAmount, exists, claimed] = await contract.connect(alice).getMyPosition();
-    const clearSide = await fhevm.userDecryptEbool(encSide, contractAddress, alice);
-    const clearAmount = await fhevm.userDecryptEuint(FhevmType.euint32, encAmount, contractAddress, alice);
+    expect(await vault.escrowByMarket(marketId)).to.eq(ethers.parseEther("1"));
+
+    const [encSide, encAmount, exists, claimed] = await market.connect(alice).getMyPosition();
+    const clearSide = await fhevm.userDecryptEbool(encSide, marketAddress, alice);
+    const clearAmount = await fhevm.userDecryptEuint(FhevmType.euint32, encAmount, marketAddress, alice);
 
     expect(exists).to.eq(true);
     expect(claimed).to.eq(false);
     expect(clearSide).to.eq(true);
     expect(clearAmount).to.eq(25n);
 
-    // Alice increases the same bet by 5 units.
-    const topUpBet = await fhevm.createEncryptedInput(contractAddress, alice.address).add32(5).encrypt();
-    tx = await contract.connect(alice).increaseBet(topUpBet.handles[0], topUpBet.inputProof);
+    // Alice increases the same bet by 5 encrypted units.
+    const topUpBet = await fhevm.createEncryptedInput(marketAddress, alice.address).add32(5).encrypt();
+    tx = await market.connect(alice).increaseBet(topUpBet.handles[0], topUpBet.inputProof);
     await tx.wait();
 
-    tx = await contract.connect(creator).grantPoolAccess(alice.address);
+    tx = await market.connect(owner).grantPoolAccess(alice.address);
     await tx.wait();
 
-    const [encYesPool, encNoPool] = await contract.getEncryptedPools();
-    const clearYesPool = await fhevm.userDecryptEuint(FhevmType.euint32, encYesPool, contractAddress, alice);
-    const clearNoPool = await fhevm.userDecryptEuint(FhevmType.euint32, encNoPool, contractAddress, alice);
+    const [encYesPool, encNoPool] = await market.getEncryptedPools();
+    const clearYesPool = await fhevm.userDecryptEuint(FhevmType.euint32, encYesPool, marketAddress, alice);
+    const clearNoPool = await fhevm.userDecryptEuint(FhevmType.euint32, encNoPool, marketAddress, alice);
 
     expect(clearYesPool).to.eq(30n);
     expect(clearNoPool).to.eq(0n);
+  });
+
+  it("settles a winner claim through MarketVault", async function () {
+    const { alice, resolver, feeRecipient, market, marketAddress, vault, marketId } = await deployFixture();
+
+    const bet = await fhevm.createEncryptedInput(marketAddress, alice.address).addBool(true).add32(100).encrypt();
+    let tx = await market.connect(alice).placeBet(bet.handles[0], bet.handles[1], bet.inputProof, {
+      value: ethers.parseEther("1")
+    });
+    await tx.wait();
+
+    await ethers.provider.send("evm_increaseTime", [4000]);
+    await ethers.provider.send("evm_mine", []);
+
+    tx = await market.connect(resolver).resolveMarket(true);
+    await tx.wait();
+
+    tx = await market.connect(alice).claim();
+    await tx.wait();
+
+    const aliceBefore = await ethers.provider.getBalance(alice.address);
+    const feeBefore = await ethers.provider.getBalance(feeRecipient.address);
+
+    tx = await market.connect(resolver).settleClaim(alice.address, true, ethers.parseEther("0.5"));
+    await tx.wait();
+
+    const aliceAfter = await ethers.provider.getBalance(alice.address);
+    const feeAfter = await ethers.provider.getBalance(feeRecipient.address);
+
+    expect(await market.claimSettled(alice.address)).to.eq(true);
+    expect(await vault.escrowByMarket(marketId)).to.eq(ethers.parseEther("0.5"));
+    expect(aliceAfter - aliceBefore).to.eq(ethers.parseEther("0.49"));
+    expect(feeAfter - feeBefore).to.eq(ethers.parseEther("0.01"));
   });
 });
