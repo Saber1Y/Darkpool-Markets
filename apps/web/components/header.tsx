@@ -1,14 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
-import { injected } from "wagmi/connectors";
+import { usePrivy } from "@privy-io/react-auth";
 import { cn } from "../lib/utils";
 
 export function Header() {
-  const { address, isConnected } = useAccount();
-  const { connect } = useConnect({ connector: injected() });
-  const { disconnect } = useDisconnect();
+  const { authenticated, user, login, logout } = usePrivy();
 
   return (
     <header className="sticky top-0 z-10 border-b border-slate-800/60 bg-slate-950/80 backdrop-blur">
@@ -17,25 +14,22 @@ export function Header() {
           DarkPool Markets
         </Link>
         <nav className="flex items-center gap-4">
-          <Link
-            href="/"
-            className="text-sm text-slate-300 transition hover:text-white"
-          >
+          <Link href="/" className="text-sm text-slate-300 transition hover:text-white">
             Markets
           </Link>
-          {isConnected && address ? (
+          {authenticated && user?.wallet ? (
             <button
-              onClick={() => disconnect()}
+              onClick={() => logout()}
               className={cn(
                 "rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200",
                 "transition hover:bg-slate-700"
               )}
             >
-              {shortAddress(address)}
+              {shortAddress(user.wallet.address)}
             </button>
           ) : (
             <button
-              onClick={() => connect()}
+              onClick={() => login()}
               className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-teal-500"
             >
               Connect Wallet
