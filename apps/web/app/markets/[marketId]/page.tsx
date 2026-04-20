@@ -2,11 +2,6 @@ import { notFound } from "next/navigation";
 import { getMarketById, statusLabel } from "../../../lib/contracts/markets";
 import { formatDateFromUnix, shortAddress } from "../../../lib/format";
 import { BetPanel } from "../../../components/bet-panel";
-import dynamic from "next/dynamic";
-
-const LoadingSpinner = dynamic(() => import("../../../components/loading-spinner").then((mod) => mod.LoadingSpinner), {
-  ssr: false
-});
 
 export const dynamic = "force-dynamic";
 
