@@ -5,9 +5,7 @@ import { injected } from "wagmi/connectors";
 
 export function ConnectWallet() {
   const { address, isConnected } = useAccount();
-  const { connect } = useConnect({
-    connector: injected()
-  });
+  const { connect } = useConnect();
   const { disconnect } = useDisconnect();
 
   if (isConnected && address) {
@@ -23,7 +21,7 @@ export function ConnectWallet() {
 
   return (
     <button
-      onClick={() => connect()}
+      onClick={() => connect({ connector: injected() })}
       className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-teal-500"
     >
       Connect Wallet

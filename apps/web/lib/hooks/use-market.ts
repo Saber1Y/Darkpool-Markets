@@ -2,9 +2,10 @@
 
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi";
 import { useMemo } from "react";
-import { publicClient } from "../contracts/client";
 import { predictionMarketAbi } from "../contracts/abi";
 import { parseEther } from "viem";
+
+const predictionMarketAbiLoose = predictionMarketAbi as any;
 
 type UseUserPositionResult = {
   sideYes: boolean | null;
@@ -19,8 +20,8 @@ export function useUserPosition(marketAddress: `0x${string}`): UseUserPositionRe
   const { address } = useAccount();
   const { data, isLoading, error } = useReadContract({
     address: marketAddress,
-    abi: predictionMarketAbi,
-    functionName: "getMyPosition",
+    abi: predictionMarketAbiLoose,
+    functionName: "getMyPosition" as any,
     query: { enabled: !!address }
   });
 
@@ -28,11 +29,12 @@ export function useUserPosition(marketAddress: `0x${string}`): UseUserPositionRe
     if (!address || !data) {
       return { sideYes: null, amount: null, exists: false, claimed: false, isLoading: false, error: null };
     }
+    const tuple = data as unknown as [boolean, bigint, boolean, boolean];
     return {
-      sideYes: data[0] as unknown as boolean,
-      amount: data[1] as unknown as bigint,
-      exists: data[2] as boolean,
-      claimed: data[3] as boolean,
+      sideYes: tuple[0],
+      amount: tuple[1],
+      exists: tuple[2],
+      claimed: tuple[3],
       isLoading,
       error
     };
@@ -52,8 +54,8 @@ export function usePlaceBet() {
   const placeBet = async (params: PlaceBetParams) => {
     await writeContractAsync({
       address: params.marketAddress,
-      abi: predictionMarketAbi,
-      functionName: "placeBet",
+      abi: predictionMarketAbiLoose,
+      functionName: "placeBet" as any,
       args: [
         { value: params.sideYes },
         { value: BigInt(params.amount) },
@@ -84,8 +86,8 @@ export function useIncreaseBet() {
   const increaseBet = async (params: IncreaseBetParams) => {
     await writeContractAsync({
       address: params.marketAddress,
-      abi: predictionMarketAbi,
-      functionName: "increaseBet",
+      abi: predictionMarketAbiLoose,
+      functionName: "increaseBet" as any,
       args: [{ value: BigInt(params.additionalAmount) }, "0x" as `0x${string}`],
       value: parseEther(params.additionalAmount)
     });
@@ -103,7 +105,7 @@ export function useIncreaseBet() {
 export function useMarketStatus(marketAddress: `0x${string}`) {
   const { data, isLoading, error } = useReadContract({
     address: marketAddress,
-    abi: predictionMarketAbi,
+    abi: predictionMarketAbiLoose,
     functionName: "status"
   });
 
