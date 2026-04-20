@@ -2,10 +2,9 @@
 
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi";
 import { useMemo } from "react";
-import { getFactoryAddress, publicClient } from "./client";
-import { marketFactoryAbi, predictionMarketAbi } from "./abi";
+import { publicClient } from "../contracts/client";
+import { predictionMarketAbi } from "../contracts/abi";
 import { parseEther } from "viem";
-import type { MarketView } from "./markets";
 
 type UseUserPositionResult = {
   sideYes: boolean | null;
