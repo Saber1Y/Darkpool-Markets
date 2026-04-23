@@ -4,6 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "scripts": {
+    "dev:local": "bash ./scripts/dev-local.sh",
     "dev:web": "pnpm --filter @darkpool/web dev",
     "dev:api": "pnpm --filter @darkpool/api dev",
     "dev:contracts": "pnpm --filter @darkpool/contracts node",
