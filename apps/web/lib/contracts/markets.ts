@@ -137,6 +137,7 @@ function toView(record: RawMarketRecord, state: RawMarketState): MarketView {
 
 export async function getMarkets(offset = 0n, limit = 20n): Promise<MarketView[]> {
   const factoryAddress = getFactoryAddress();
+  console.log("[getMarkets] Factory address:", factoryAddress);
   await assertFactoryExists(factoryAddress);
 
   const markets = (await readWithRpcFallback((client) =>
@@ -148,12 +149,17 @@ export async function getMarkets(offset = 0n, limit = 20n): Promise<MarketView[]
     })
   )) as RawMarketRecord[];
 
+  console.log("[getMarkets] Raw markets:", markets);
+
   const states = await Promise.all(markets.map((m) => readMarketState(m.marketAddress)));
-  return markets.map((m, i) => toView(m, states[i]));
+  const result = markets.map((m, i) => toView(m, states[i]));
+  console.log("[getMarkets] Processed markets:", result);
+  return result;
 }
 
 export async function getMarketById(marketId: bigint): Promise<MarketView | null> {
   const factoryAddress = getFactoryAddress();
+  console.log("[getMarketById] Looking up marketId:", marketId.toString());
   try {
     await assertFactoryExists(factoryAddress);
     const market = (await readWithRpcFallback((client) =>
@@ -165,9 +171,13 @@ export async function getMarketById(marketId: bigint): Promise<MarketView | null
       })
     )) as RawMarketRecord;
 
+    console.log("[getMarketById] Found market:", market);
     const state = await readMarketState(market.marketAddress);
-    return toView(market, state);
-  } catch {
+    const result = toView(market, state);
+    console.log("[getMarketById] Processed market:", result);
+    return result;
+  } catch (error) {
+    console.error("[getMarketById] Error:", error);
     return null;
   }
 }
