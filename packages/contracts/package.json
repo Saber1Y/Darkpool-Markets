@@ -10,6 +10,7 @@
     "deploy:zama": "hardhat run scripts/deploy.ts --network zamaTestnet",
     "create-market:local": "hardhat run scripts/create-market.ts --network localhost",
     "create-market:zama": "hardhat run scripts/create-market.ts --network zamaTestnet",
+    "setup:local": "hardhat run scripts/setup-local.ts --network localhost",
     "lint": "echo \"No contracts lint yet\""
   },
   "dependencies": {
