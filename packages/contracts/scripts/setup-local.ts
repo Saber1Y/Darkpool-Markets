@@ -13,16 +13,29 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Setting up local environment with account:", deployer.address);
 
-  // Deploy contracts
-  console.log("\nDeploying contracts...");
-  const MarketFactory = await ethers.getContractFactory("MarketFactory");
-  const factory = await MarketFactory.deploy(deployer.address);
+  // Deploy MarketResolver
+  console.log("\nDeploying MarketResolver...");
+  const resolverFactory = await ethers.getContractFactory("MarketResolver");
+  const resolver = await resolverFactory.connect(deployer).deploy(deployer.address);
+  await resolver.waitForDeployment();
+  const resolverAddress = await resolver.getAddress();
+  console.log("MarketResolver deployed to:", resolverAddress);
+
+  // Deploy MarketVault
+  console.log("\nDeploying MarketVault...");
+  const vaultFactory = await ethers.getContractFactory("MarketVault");
+  const vault = await vaultFactory.connect(deployer).deploy(deployer.address, deployer.address, 200);
+  await vault.waitForDeployment();
+  const vaultAddress = await vault.getAddress();
+  console.log("MarketVault deployed to:", vaultAddress);
+
+  // Deploy MarketFactory (needs resolver and vault addresses)
+  console.log("\nDeploying MarketFactory...");
+  const factoryFactory = await ethers.getContractFactory("MarketFactory");
+  const factory = await factoryFactory.connect(deployer).deploy(resolverAddress, vaultAddress);
   await factory.waitForDeployment();
   const factoryAddress = await factory.getAddress();
   console.log("MarketFactory deployed to:", factoryAddress);
-
-  const vaultAddress = await factory.vault();
-  console.log("MarketVault deployed to:", vaultAddress);
 
   // Create test markets
   console.log("\nCreating test markets...");
@@ -50,7 +63,6 @@ async function main() {
     }
 
     if (marketId !== undefined && marketAddress !== undefined) {
-      const vault = await ethers.getContractAt("MarketVault", vaultAddress, deployer);
       await (await vault.setMarketOperator(marketId, marketAddress, true)).wait();
       console.log(`  Market #${marketId}: ${marketData.question}`);
     }
@@ -74,11 +86,18 @@ async function main() {
     envContent += `\nNEXT_PUBLIC_FACTORY_ADDRESS=${factoryAddress}\n`;
   }
 
+  // Also update RPC URL if needed
+  if (!envContent.includes("NEXT_PUBLIC_RPC_URL")) {
+    envContent += `NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545\n`;
+  }
+
   fs.writeFileSync(envPath, envContent.trim() + "\n");
   console.log("\nUpdated apps/web/.env.local with factory address");
 
-  console.log("\nSetup complete!");
+  console.log("\n=== Setup Complete! ===");
   console.log("Factory Address:", factoryAddress);
+  console.log("Resolver Address:", resolverAddress);
+  console.log("Vault Address:", vaultAddress);
   console.log("\nNow run: pnpm dev:web");
 }
 
