@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { getMarketById, statusLabel } from "../../../lib/contracts/markets";
 import { formatDateFromUnix, shortAddress } from "../../../lib/format";
 import { BetPanel } from "../../../components/bet-panel";
+import { ResolveMarket } from "../../../components/resolve-market";
+import { ClaimPayout } from "../../../components/claim-payout";
 
 export const dynamic = "force-dynamic";
 
@@ -111,9 +113,17 @@ export default async function MarketDetailPage({ params }: MarketDetailPageProps
         </div>
       </section>
 
-      <section>
+      <section className="mb-8">
         <h2 className="mb-4 text-lg font-medium text-slate-100">Place Your Bet</h2>
         <BetPanel market={market} />
+      </section>
+
+      <section className="mb-8">
+        <ResolveMarket market={market} isResolver={true} />
+      </section>
+
+      <section>
+        <ClaimPayout market={market} isResolver={true} />
       </section>
     </main>
   );
