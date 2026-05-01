@@ -45,6 +45,9 @@ type PlaceBetParams = {
   marketAddress: `0x${string}`;
   sideYes: boolean;
   amount: string;
+  encryptedSide?: `0x${string}`;
+  encryptedAmount?: `0x${string}`;
+  proof?: `0x${string}`;
 };
 
 export function usePlaceBet() {
@@ -57,9 +60,9 @@ export function usePlaceBet() {
       abi: predictionMarketAbiLoose,
       functionName: "placeBet" as any,
       args: [
-        { value: params.sideYes },
-        { value: BigInt(params.amount) },
-        "0x" as `0x${string}`
+        params.encryptedSide ? { value: params.encryptedSide } : { value: params.sideYes },
+        params.encryptedAmount ? { value: params.encryptedAmount } : { value: BigInt(params.amount) },
+        params.proof || ("0x" as `0x${string}`)
       ],
       value: parseEther(params.amount)
     });

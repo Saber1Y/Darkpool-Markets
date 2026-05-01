@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { usePlaceBet, useIncreaseBet, useUserPosition } from "../lib/hooks/use-market";
 import { LoadingSpinner } from "./loading-spinner";
+import { prepareBetArgs } from "../lib/encryption";
+import { parseEther } from "viem";
 import type { MarketView } from "../lib/contracts/markets";
 
 type BetPanelProps = {
@@ -43,10 +45,20 @@ export function BetPanel({ market }: BetPanelProps) {
           additionalAmount: amount
         });
       } else {
+        // Encrypt the bet using fhEVM
+        const amountWei = parseEther(amount);
+        const { encryptedSide, encryptedAmount, proof } = await prepareBetArgs(
+          side === "yes",
+          Number(amountWei)
+        );
+
         await placeBet({
           marketAddress: market.marketAddress,
           sideYes: side === "yes",
-          amount
+          amount,
+          encryptedSide,
+          encryptedAmount,
+          proof
         });
       }
     } catch (err) {
