@@ -17,6 +17,9 @@ export function Header() {
           <Link href="/" className="text-sm text-slate-300 transition hover:text-white">
             Markets
           </Link>
+          <Link href="/dashboard" className="text-sm text-slate-300 transition hover:text-white">
+            Dashboard
+          </Link>
           {authenticated && user?.wallet ? (
             <button
               onClick={() => logout()}
