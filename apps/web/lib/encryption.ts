@@ -1,54 +1,9 @@
 "use client";
 
-import { createInstance } from "@zama-fhe/sdk";
-
-type FheInstance = Awaited<ReturnType<typeof createInstance>>;
-
-let instance: FheInstance | null = null;
-
-export async function getFheInstance(): Promise<FheInstance> {
-  if (instance) return instance;
-
-  instance = await createInstance({
-    network: "localhost"
-  });
-
-  return instance;
-}
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 /**
- * Encrypt a boolean (true = YES, false = NO) for the prediction market
- */
-export async function encryptBool(value: boolean): Promise<{ handle: Uint8Array; inputProof: Uint8Array }> {
-  const fhe = await getFheInstance();
-  const encrypted = fhe.encrypt_bool(value);
-  return {
-    handle: encrypted.handle,
-    inputProof: encrypted.inputProof
-  };
-}
-
-/**
- * Encrypt a uint32 amount for the prediction market
- */
-export async function encryptUint32(value: number): Promise<{ handle: Uint8Array; inputProof: Uint8Array }> {
-  const fhe = await getFheInstance();
-  const encrypted = fhe.encrypt_uin32(value);
-  return {
-    handle: encrypted.handle,
-    inputProof: encrypted.inputProof
-  };
-}
-
-/**
- * Convert encrypted data to hex string for contract interaction
- */
-export function toHex(bytes: Uint8Array): `0x${string}` {
-  return `0x${Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("")}`;
-}
-
-/**
- * Prepare bet arguments for the contract
+ * Call the API to encrypt bet data using fhEVM
  */
 export async function prepareBetArgs(
   sideYes: boolean,
@@ -58,22 +13,24 @@ export async function prepareBetArgs(
   encryptedAmount: `0x${string}`;
   proof: `0x${string}`;
 }> {
-  const [sideResult, amountResult] = await Promise.all([encryptBool(sideYes), encryptUint32(Number(amountWei))]);
+  const response = await fetch(`${API_BASE}/api/encrypt-bet`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sideYes,
+      amount: Number(amountWei)
+    })
+  });
 
-  return {
-    encryptedSide: toHex(sideResult.handle),
-    encryptedAmount: toHex(amountResult.handle),
-    proof: toHex(mergeProofs(sideResult.inputProof, amountResult.inputProof))
-  };
-}
-
-function mergeProofs(...proofs: Uint8Array[]): Uint8Array {
-  const totalLength = proofs.reduce((sum, p) => sum + p.length, 0);
-  const merged = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const proof of proofs) {
-    merged.set(proof, offset);
-    offset += proof.length;
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Encryption failed");
   }
-  return merged;
+
+  const data = await response.json();
+  return {
+    encryptedSide: data.encryptedSide,
+    encryptedAmount: data.encryptedAmount,
+    proof: data.proof
+  };
 }
