@@ -5,8 +5,6 @@ import { useMemo } from "react";
 import { predictionMarketAbi } from "../contracts/abi";
 import { parseEther } from "viem";
 
-const predictionMarketAbiLoose = predictionMarketAbi as any;
-
 type UseUserPositionResult = {
   sideYes: boolean | null;
   amount: bigint | null;
@@ -20,8 +18,8 @@ export function useUserPosition(marketAddress: `0x${string}`): UseUserPositionRe
   const { address } = useAccount();
   const { data, isLoading, error } = useReadContract({
     address: marketAddress,
-    abi: predictionMarketAbiLoose,
-    functionName: "getMyPosition" as any,
+    abi: predictionMarketAbi,
+    functionName: "getMyPosition",
     query: { enabled: !!address }
   });
 
@@ -29,25 +27,24 @@ export function useUserPosition(marketAddress: `0x${string}`): UseUserPositionRe
     if (!address || !data) {
       return { sideYes: null, amount: null, exists: false, claimed: false, isLoading: false, error: null };
     }
-    const tuple = data as unknown as [boolean, bigint, boolean, boolean];
+    const [handlesSideYes, handlesAmount, exists, claimed] = data;
     return {
-      sideYes: tuple[0],
-      amount: tuple[1],
-      exists: tuple[2],
-      claimed: tuple[3],
+      sideYes: handlesSideYes as unknown as boolean,
+      amount: handlesAmount as unknown as bigint,
+      exists,
+      claimed,
       isLoading,
-      error
+      error: error as Error | null
     };
   }, [address, data, isLoading, error]);
 }
 
 type PlaceBetParams = {
   marketAddress: `0x${string}`;
-  sideYes: boolean;
   amount: string;
-  encryptedSide?: `0x${string}`;
-  encryptedAmount?: `0x${string}`;
-  proof?: `0x${string}`;
+  encryptedSide: `0x${string}`;
+  encryptedAmount: `0x${string}`;
+  proof: `0x${string}`;
 };
 
 export function usePlaceBet() {
@@ -57,13 +54,9 @@ export function usePlaceBet() {
   const placeBet = async (params: PlaceBetParams) => {
     await writeContractAsync({
       address: params.marketAddress,
-      abi: predictionMarketAbiLoose,
-      functionName: "placeBet" as any,
-      args: [
-        params.encryptedSide ? { value: params.encryptedSide } : { value: params.sideYes },
-        params.encryptedAmount ? { value: params.encryptedAmount } : { value: BigInt(params.amount) },
-        params.proof || ("0x" as `0x${string}`)
-      ],
+      abi: predictionMarketAbi,
+      functionName: "placeBet",
+      args: [params.encryptedSide, params.encryptedAmount, params.proof],
       value: parseEther(params.amount)
     });
   };
@@ -80,6 +73,8 @@ export function usePlaceBet() {
 type IncreaseBetParams = {
   marketAddress: `0x${string}`;
   additionalAmount: string;
+  encryptedAmount: `0x${string}`;
+  proof: `0x${string}`;
 };
 
 export function useIncreaseBet() {
@@ -89,9 +84,9 @@ export function useIncreaseBet() {
   const increaseBet = async (params: IncreaseBetParams) => {
     await writeContractAsync({
       address: params.marketAddress,
-      abi: predictionMarketAbiLoose,
-      functionName: "increaseBet" as any,
-      args: [{ value: BigInt(params.additionalAmount) }, "0x" as `0x${string}`],
+      abi: predictionMarketAbi,
+      functionName: "increaseBet",
+      args: [params.encryptedAmount, params.proof],
       value: parseEther(params.additionalAmount)
     });
   };
@@ -108,7 +103,7 @@ export function useIncreaseBet() {
 export function useMarketStatus(marketAddress: `0x${string}`) {
   const { data, isLoading, error } = useReadContract({
     address: marketAddress,
-    abi: predictionMarketAbiLoose,
+    abi: predictionMarketAbi,
     functionName: "status"
   });
 
