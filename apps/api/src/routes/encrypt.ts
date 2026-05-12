@@ -1,15 +1,13 @@
 import { Router, Request, Response } from "express";
-import { zod } from "zod";
+import { z } from "zod";
 import { createInstance } from "@zama-fhe/sdk";
 
 const router = Router();
 
-const EncryptSchema = zod.object({
-  sideYes: zod.boolean(),
-  amount: zod.number().min(0)
+const EncryptSchema = z.object({
+  sideYes: z.boolean(),
+  amount: z.number().min(0)
 });
-
-type EncryptRequest = zod.infer<typeof EncryptSchema>;
 
 let fheInstance: Awaited<ReturnType<typeof createInstance>> | null = null;
 
