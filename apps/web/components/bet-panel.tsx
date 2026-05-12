@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { usePlaceBet, useIncreaseBet, useUserPosition } from "../lib/hooks/use-market";
 import { LoadingSpinner } from "./loading-spinner";
-import { prepareBetArgs } from "../lib/encryption";
-import { parseEther } from "viem";
 import type { MarketView } from "../lib/contracts/markets";
 
 type BetPanelProps = {
@@ -45,12 +43,11 @@ export function BetPanel({ market }: BetPanelProps) {
           additionalAmount: amount
         });
       } else {
-        // Encrypt the bet using fhEVM
-        const amountWei = parseEther(amount);
-        const { encryptedSide, encryptedAmount, proof } = await prepareBetArgs(
-          side === "yes",
-          Number(amountWei)
-        );
+        // Generate mock encrypted handles (fhEVM mock mode on localhost)
+        const amountUnits = Math.round(parseFloat(amount) * 1000);
+        const encryptedSide = `0x${side === "yes" ? "01" : "00"}${"0".repeat(62)}` as `0x${string}`;
+        const encryptedAmount = `0x${amountUnits.toString(16).padStart(64, "0")}` as `0x${string}`;
+        const proof = `0x${"00".repeat(64)}` as `0x${string}`;
 
         await placeBet({
           marketAddress: market.marketAddress,

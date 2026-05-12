@@ -1,6 +1,5 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import crypto from "crypto";
 
 const router = Router();
 
@@ -9,35 +8,19 @@ const EncryptSchema = z.object({
   amount: z.number().min(0)
 });
 
-/**
- * Generate mock encrypted handles for local Hardhat testing.
- * The fhEVM Hardhat plugin uses mock encryption, so the contract
- * accepts any properly formatted encrypted handles + proof.
- */
-function generateHandle(value: number): string {
-  const buf = Buffer.alloc(32);
-  buf.writeUInt32LE(value, 0);
-  // Randomize remaining bytes
-  const random = crypto.randomBytes(28);
-  random.copy(buf, 4);
-  return `0x${buf.toString("hex")}`;
-}
-
-function generateProof(): string {
-  return `0x${crypto.randomBytes(64).toString("hex")}`;
+function padHex(value: string, bytes: number): string {
+  return value.padStart(bytes * 2, "0");
 }
 
 router.post("/encrypt-bet", async (req: Request, res: Response) => {
   try {
     const { sideYes, amount } = EncryptSchema.parse(req.body);
 
-    const result = {
-      encryptedSide: generateHandle(sideYes ? 1 : 0),
-      encryptedAmount: generateHandle(amount),
-      proof: generateProof()
-    };
+    const encryptedSide = `0x${sideYes ? "01" : "00"}${"0".repeat(62)}`;
+    const encryptedAmount = `0x${padHex(amount.toString(16), 32)}`;
+    const proof = `0x${"00".repeat(64)}`;
 
-    res.json(result);
+    res.json({ encryptedSide, encryptedAmount, proof });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Encryption failed";
     console.error("[encrypt] Error:", message);
