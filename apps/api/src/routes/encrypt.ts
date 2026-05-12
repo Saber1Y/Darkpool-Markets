@@ -1,6 +1,5 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import { createInstance } from "@zama-fhe/sdk";
 
 const router = Router();
 
@@ -8,18 +7,6 @@ const EncryptSchema = z.object({
   sideYes: z.boolean(),
   amount: z.number().min(0)
 });
-
-let fheInstance: Awaited<ReturnType<typeof createInstance>> | null = null;
-
-async function getFheInstance() {
-  if (fheInstance) return fheInstance;
-
-  fheInstance = await createInstance({
-    network: "localhost"
-  });
-
-  return fheInstance;
-}
 
 function toHex(bytes: Uint8Array): string {
   return `0x${Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("")}`;
@@ -40,7 +27,8 @@ router.post("/encrypt-bet", async (req: Request, res: Response) => {
   try {
     const { sideYes, amount } = EncryptSchema.parse(req.body);
 
-    const fhe = await getFheInstance();
+    const { createInstance } = await import("@zama-fhe/sdk");
+    const fhe = await createInstance({ network: "localhost" });
 
     const [sideResult, amountResult] = await Promise.all([
       fhe.encrypt_bool(sideYes),
@@ -55,9 +43,9 @@ router.post("/encrypt-bet", async (req: Request, res: Response) => {
 
     res.json(result);
   } catch (error) {
-    res.status(400).json({
-      error: error instanceof Error ? error.message : "Encryption failed"
-    });
+    const message = error instanceof Error ? error.message : "Encryption failed";
+    console.error("[encrypt] Error:", message);
+    res.status(400).json({ error: message });
   }
 });
 
