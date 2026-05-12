@@ -3,14 +3,13 @@
 import { PrivyProvider } from "@privy-io/react-auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
-import { mainnet, baseSepolia } from "wagmi/chains";
+import { hardhat } from "wagmi/chains";
 import { ReactNode, useState } from "react";
 
 const config = createConfig({
-  chains: [mainnet, baseSepolia],
+  chains: [hardhat],
   transports: {
-    [mainnet.id]: http(),
-    [baseSepolia.id]: http(process.env.NEXT_PUBLIC_RPC_URL)
+    [hardhat.id]: http()
   }
 });
 
