@@ -14,7 +14,8 @@ const config: HardhatUserConfig = {
   },
   networks: {
     localhost: {
-      url: "http://127.0.0.1:8545"
+      url: "http://127.0.0.1:8545",
+      blockGasLimit: 50_000_000
     },
     zamaTestnet: {
       url: process.env.ZAMA_TESTNET_RPC_URL ?? "",

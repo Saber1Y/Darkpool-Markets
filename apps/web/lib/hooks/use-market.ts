@@ -56,6 +56,7 @@ export function usePlaceBet() {
       address: params.marketAddress,
       abi: predictionMarketAbi,
       functionName: "placeBet",
+      gas: 15_000_000n,
       args: [params.encryptedSide, params.encryptedAmount, params.proof],
       value: parseEther(params.amount)
     });
@@ -86,6 +87,7 @@ export function useIncreaseBet() {
       address: params.marketAddress,
       abi: predictionMarketAbi,
       functionName: "increaseBet",
+      gas: 15_000_000n,
       args: [params.encryptedAmount, params.proof],
       value: parseEther(params.additionalAmount)
     });
