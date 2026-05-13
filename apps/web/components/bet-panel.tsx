@@ -11,7 +11,7 @@ type BetPanelProps = {
 };
 
 export function BetPanel({ market }: BetPanelProps) {
-  const { isConnected } = useAccount();
+  const { isConnected, address: userAddress } = useAccount();
   const [side, setSide] = useState<"yes" | "no">("yes");
   const [amount, setAmount] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
@@ -43,19 +43,29 @@ export function BetPanel({ market }: BetPanelProps) {
           additionalAmount: amount
         });
       } else {
-        // Generate mock encrypted handles (fhEVM mock mode on localhost)
-        const amountUnits = Math.round(parseFloat(amount) * 1000);
-        const encryptedSide = `0x${side === "yes" ? "01" : "00"}${"0".repeat(62)}` as `0x${string}`;
-        const encryptedAmount = `0x${amountUnits.toString(16).padStart(64, "0")}` as `0x${string}`;
-        const proof = `0x${"00".repeat(64)}` as `0x${string}`;
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+        const encRes = await fetch(`${apiUrl}/api/encrypt-bet`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sideYes: side === "yes",
+            amount: parseFloat(amount),
+            userAddress,
+            contractAddress: market.marketAddress
+          })
+        });
+        if (!encRes.ok) {
+          const errData = await encRes.json().catch(() => ({}));
+          throw new Error((errData as any).error ?? "Encryption failed");
+        }
+        const encData = await encRes.json() as { encryptedSide: `0x${string}`; encryptedAmount: `0x${string}`; proof: `0x${string}` };
 
         await placeBet({
           marketAddress: market.marketAddress,
-          sideYes: side === "yes",
           amount,
-          encryptedSide,
-          encryptedAmount,
-          proof
+          encryptedSide: encData.encryptedSide,
+          encryptedAmount: encData.encryptedAmount,
+          proof: encData.proof
         });
       }
     } catch (err) {
