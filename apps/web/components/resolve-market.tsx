@@ -10,11 +10,15 @@ type ResolveMarketProps = {
   market: MarketView;
 };
 
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
 export function ResolveMarket({ market }: ResolveMarketProps) {
   const [outcomeYes, setOutcomeYes] = useState(true);
   const [confidenceYesPct, setConfidenceYesPct] = useState("5000");
   const [deltaBps24h, setDeltaBps24h] = useState("0");
   const [signalStrength, setSignalStrength] = useState<0 | 1 | 2>(0);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiReasoning, setAiReasoning] = useState<string | null>(null);
 
   const { writeContractAsync, isPending, data: txHash } = useWriteContract();
   const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash });
@@ -47,11 +51,54 @@ export function ResolveMarket({ market }: ResolveMarketProps) {
     }
   };
 
-
+  const handleAiSuggest = async () => {
+    setAiLoading(true);
+    setAiReasoning(null);
+    try {
+      const r = await fetch(`${apiUrl}/api/suggest-resolution`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: market.question })
+      });
+      if (!r.ok) throw new Error("AI request failed");
+      const data = await r.json() as {
+        outcomeYes: boolean;
+        confidenceYesPct: number;
+        deltaBps24h: number;
+        signalStrength: number;
+        reasoning: string;
+      };
+      setOutcomeYes(data.outcomeYes);
+      setConfidenceYesPct(data.confidenceYesPct.toString());
+      setDeltaBps24h(data.deltaBps24h.toString());
+      setSignalStrength(data.signalStrength as 0 | 1 | 2);
+      setAiReasoning(data.reasoning);
+    } catch (error) {
+      console.error("AI suggest failed:", error);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
-      <h3 className="mb-4 text-lg font-medium text-slate-100">Resolve Market</h3>
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-lg font-medium text-slate-100">Resolve Market</h3>
+        <button
+          type="button"
+          onClick={handleAiSuggest}
+          disabled={isDisabled || aiLoading}
+          className="rounded-lg border border-purple-700 bg-purple-900/30 px-3 py-1.5 text-xs font-medium text-purple-200 transition hover:bg-purple-900/50 disabled:opacity-50"
+        >
+          {aiLoading ? <LoadingSpinner size="sm" /> : "AI Suggest"}
+        </button>
+      </div>
+
+      {aiReasoning && (
+        <div className="mb-4 rounded-lg border border-purple-800/50 bg-purple-900/20 p-3">
+          <p className="text-xs text-purple-300">{aiReasoning}</p>
+        </div>
+      )}
 
       <div className="mb-4">
         <label className="mb-2 block text-xs text-slate-400">Market Outcome</label>
