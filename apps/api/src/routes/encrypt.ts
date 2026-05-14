@@ -75,16 +75,16 @@ router.post("/encrypt-bet", async (req: Request, res: Response) => {
       numSigners.toString(16).padStart(2, "0");
 
     for (const handle of handles) {
-      inputProofHex += handle.replace("0x", "").padStart(64, "0");
+      inputProofHex += handle.padStart(64, "0");
     }
     for (const sig of signatures) {
-      inputProofHex += sig.replace("0x", "").padStart(130, "0");
+      inputProofHex += sig.padStart(130, "0");
     }
     inputProofHex += "00";
 
     res.json({
-      encryptedSide: handles[0],
-      encryptedAmount: handles[1],
+      encryptedSide: ("0x" + handles[0]) as `0x${string}`,
+      encryptedAmount: ("0x" + handles[1]) as `0x${string}`,
       proof: inputProofHex as `0x${string}`
     });
   } catch (error) {
