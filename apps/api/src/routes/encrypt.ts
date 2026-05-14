@@ -94,4 +94,20 @@ router.post("/encrypt-bet", async (req: Request, res: Response) => {
   }
 });
 
+const DecryptSchema = z.object({
+  handles: z.array(z.string().regex(/^0x[a-fA-F0-9]{64}$/))
+});
+
+router.post("/decrypt", async (req: Request, res: Response) => {
+  try {
+    const { handles } = DecryptSchema.parse(req.body);
+    const result = await rpcCall("fhevm_getClearText", [handles]);
+    res.json({ values: result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Decryption failed";
+    console.error("[decrypt] Error:", message);
+    res.status(400).json({ error: message });
+  }
+});
+
 export default router;

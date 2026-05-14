@@ -12,11 +12,12 @@ type UseUserPositionResult = {
   claimed: boolean;
   isLoading: boolean;
   error: Error | null;
+  refetch: () => void;
 };
 
 export function useUserPosition(marketAddress: `0x${string}`): UseUserPositionResult {
   const { address } = useAccount();
-  const { data, isLoading, error } = useReadContract({
+  const { data, isLoading, error, refetch } = useReadContract({
     address: marketAddress,
     abi: predictionMarketAbi,
     functionName: "getMyPosition",
@@ -25,7 +26,7 @@ export function useUserPosition(marketAddress: `0x${string}`): UseUserPositionRe
 
   return useMemo(() => {
     if (!address || !data) {
-      return { sideYes: null, amount: null, exists: false, claimed: false, isLoading: false, error: null };
+      return { sideYes: null, amount: null, exists: false, claimed: false, isLoading: false, error: null, refetch };
     }
     const [handlesSideYes, handlesAmount, exists, claimed] = data;
     return {
@@ -34,9 +35,10 @@ export function useUserPosition(marketAddress: `0x${string}`): UseUserPositionRe
       exists,
       claimed,
       isLoading,
-      error: error as Error | null
+      error: error as Error | null,
+      refetch
     };
-  }, [address, data, isLoading, error]);
+  }, [address, data, isLoading, error, refetch]);
 }
 
 type PlaceBetParams = {

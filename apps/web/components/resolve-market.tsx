@@ -8,10 +8,9 @@ import { LoadingSpinner } from "./loading-spinner";
 
 type ResolveMarketProps = {
   market: MarketView;
-  isResolver: boolean;
 };
 
-export function ResolveMarket({ market, isResolver }: ResolveMarketProps) {
+export function ResolveMarket({ market }: ResolveMarketProps) {
   const [outcomeYes, setOutcomeYes] = useState(true);
   const [confidenceYesPct, setConfidenceYesPct] = useState("5000");
   const [deltaBps24h, setDeltaBps24h] = useState("0");
@@ -20,7 +19,7 @@ export function ResolveMarket({ market, isResolver }: ResolveMarketProps) {
   const { writeContractAsync, isPending, data: txHash } = useWriteContract();
   const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash });
 
-  const isDisabled = !isResolver || market.status !== 1n;
+  const isDisabled = market.status !== 1n;
 
   const handleResolve = async () => {
     try {
@@ -48,7 +47,7 @@ export function ResolveMarket({ market, isResolver }: ResolveMarketProps) {
     }
   };
 
-  if (!isResolver) return null;
+
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
 import { usePlaceBet, useIncreaseBet, useUserPosition } from "../lib/hooks/use-market";
 import { LoadingSpinner } from "./loading-spinner";
@@ -10,16 +10,33 @@ type BetPanelProps = {
   market: MarketView;
 };
 
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+async function decryptHandle(handle: `0x${string}`): Promise<bigint> {
+  const r = await fetch(`${apiUrl}/api/decrypt`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ handles: [handle] })
+  });
+  if (!r.ok) return 0n;
+  const d = await r.json() as { values: string[] };
+  const v = d.values[0];
+  if (!v || v === "0x") return 0n;
+  return BigInt(v);
+}
+
 export function BetPanel({ market }: BetPanelProps) {
   const { isConnected, address: userAddress } = useAccount();
   const [side, setSide] = useState<"yes" | "no">("yes");
   const [amount, setAmount] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [decryptedAmount, setDecryptedAmount] = useState<string | null>(null);
 
-  const { sideYes: existingSide, amount: existingAmount, exists: hasExistingPosition, claimed } =
+  const { sideYes: existingSide, amount: existingAmount, exists: hasExistingPosition, claimed, refetch } =
     useUserPosition(market.marketAddress);
-  const { placeBet, isLoading: isPlacing } = usePlaceBet();
-  const { increaseBet, isLoading: isIncreasing } = useIncreaseBet();
+  const { placeBet, isLoading: isPlacing, txHash: placeTxHash, isConfirming: isPlaceConfirming } = usePlaceBet();
+  const { increaseBet, isLoading: isIncreasing, txHash: increaseTxHash, isConfirming: isIncreaseConfirming } = useIncreaseBet();
 
   useEffect(() => {
     if (!hasExistingPosition && amount && parseFloat(amount) <= 0) {
@@ -29,6 +46,38 @@ export function BetPanel({ market }: BetPanelProps) {
     }
   }, [amount, hasExistingPosition]);
 
+  const confirmRefetch = useCallback(async () => {
+    await new Promise(r => setTimeout(r, 2000));
+    refetch();
+  }, [refetch]);
+
+  useEffect(() => {
+    if (isPlaceConfirming === false && placeTxHash) {
+      setSuccessMsg("Bet placed successfully!");
+      confirmRefetch();
+      const t = setTimeout(() => setSuccessMsg(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [isPlaceConfirming, placeTxHash, confirmRefetch]);
+
+  useEffect(() => {
+    if (isIncreaseConfirming === false && increaseTxHash) {
+      setSuccessMsg("Funds added!");
+      confirmRefetch();
+      const t = setTimeout(() => setSuccessMsg(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [isIncreaseConfirming, increaseTxHash, confirmRefetch]);
+
+  useEffect(() => {
+    if (hasExistingPosition && existingAmount) {
+      decryptHandle(existingAmount as unknown as `0x${string}`).then(v => {
+        const eth = Number(v) / 1000;
+        setDecryptedAmount(eth > 0 ? eth.toFixed(4) : null);
+      });
+    }
+  }, [hasExistingPosition, existingAmount]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || parseFloat(amount) <= 0) {
@@ -37,29 +86,31 @@ export function BetPanel({ market }: BetPanelProps) {
     }
 
     try {
+      setSuccessMsg(null);
+      const encRes = await fetch(`${apiUrl}/api/encrypt-bet`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sideYes: hasExistingPosition ? existingSide : side === "yes",
+          amount: parseFloat(amount),
+          userAddress,
+          contractAddress: market.marketAddress
+        })
+      });
+      if (!encRes.ok) {
+        const errData = await encRes.json().catch(() => ({}));
+        throw new Error((errData as any).error ?? "Encryption failed");
+      }
+      const encData = await encRes.json() as { encryptedSide: `0x${string}`; encryptedAmount: `0x${string}`; proof: `0x${string}` };
+
       if (hasExistingPosition) {
         await increaseBet({
           marketAddress: market.marketAddress,
-          additionalAmount: amount
+          additionalAmount: amount,
+          encryptedAmount: encData.encryptedAmount,
+          proof: encData.proof
         });
       } else {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-        const encRes = await fetch(`${apiUrl}/api/encrypt-bet`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sideYes: side === "yes",
-            amount: parseFloat(amount),
-            userAddress,
-            contractAddress: market.marketAddress
-          })
-        });
-        if (!encRes.ok) {
-          const errData = await encRes.json().catch(() => ({}));
-          throw new Error((errData as any).error ?? "Encryption failed");
-        }
-        const encData = await encRes.json() as { encryptedSide: `0x${string}`; encryptedAmount: `0x${string}`; proof: `0x${string}` };
-
         await placeBet({
           marketAddress: market.marketAddress,
           amount,
@@ -73,8 +124,18 @@ export function BetPanel({ market }: BetPanelProps) {
     }
   };
 
+  const isPending = isPlacing || isIncreasing;
   const isDisabled =
-    market.status !== 0n || !isConnected || isPlacing || isIncreasing || (hasExistingPosition && claimed);
+    market.status !== 0n || !isConnected || isPending || (hasExistingPosition && claimed);
+
+  if (successMsg) {
+    return (
+      <div className="rounded-xl border border-emerald-800 bg-emerald-900/30 p-5 text-center">
+        <p className="text-lg font-medium text-emerald-300">{successMsg}</p>
+        <p className="mt-1 text-xs text-emerald-500">Refreshing position...</p>
+      </div>
+    );
+  }
 
   if (market.status !== 0n) {
     return (
@@ -112,7 +173,10 @@ export function BetPanel({ market }: BetPanelProps) {
             Side: <span className="text-slate-200">{existingSide ? "YES" : "NO"}</span>
           </p>
           <p className="text-slate-400">
-            Amount: <span className="text-slate-200">{existingAmount ? `${existingAmount.toString()} ETH` : "N/A"}</span>
+            Amount:{" "}
+            <span className="text-slate-200">
+              {decryptedAmount ? `${decryptedAmount} ETH` : existingAmount ? `${existingAmount.toString()} ETH` : "N/A"}
+            </span>
           </p>
         </div>
 
@@ -134,7 +198,7 @@ export function BetPanel({ market }: BetPanelProps) {
               disabled={isDisabled || !amount}
               className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-teal-500 disabled:opacity-50"
             >
-              {isIncreasing ? <LoadingSpinner size="sm" /> : "Add Funds"}
+              {isPending ? <LoadingSpinner size="sm" /> : "Add Funds"}
             </button>
           </div>
         </div>
@@ -199,7 +263,7 @@ export function BetPanel({ market }: BetPanelProps) {
         disabled={isDisabled || !amount}
         className="mt-4 w-full rounded-lg bg-teal-600 py-3 text-sm font-medium text-white transition hover:bg-teal-500 disabled:opacity-50"
       >
-        {isPlacing ? <LoadingSpinner size="sm" /> : `Bet ${side.toUpperCase()} ${amount ? `(${amount} ETH)` : ""}`}
+        {isPending ? <LoadingSpinner size="sm" /> : `Bet ${side.toUpperCase()} ${amount ? `(${amount} ETH)` : ""}`}
       </button>
     </form>
   );

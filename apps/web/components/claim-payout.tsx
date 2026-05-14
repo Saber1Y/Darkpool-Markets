@@ -8,10 +8,10 @@ import { LoadingSpinner } from "./loading-spinner";
 
 type ClaimPayoutProps = {
   market: MarketView;
-  isResolver: boolean;
+  isCreator: boolean;
 };
 
-export function ClaimPayout({ market, isResolver }: ClaimPayoutProps) {
+export function ClaimPayout({ market, isCreator }: ClaimPayoutProps) {
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimResult, setClaimResult] = useState<string | null>(null);
 
@@ -35,7 +35,7 @@ export function ClaimPayout({ market, isResolver }: ClaimPayoutProps) {
   };
 
   const handleSettleClaim = async (winner: boolean) => {
-    if (!isResolver) return;
+    if (!isCreator) return;
     try {
       await writeContractAsync({
         address: market.marketAddress,
@@ -70,7 +70,7 @@ export function ClaimPayout({ market, isResolver }: ClaimPayoutProps) {
           {isClaiming || isPending ? <LoadingSpinner size="sm" /> : "Claim Winnings"}
         </button>
 
-        {isResolver && (
+        {isCreator && (
           <button
             onClick={() => handleSettleClaim(true)}
             disabled={isPending}
