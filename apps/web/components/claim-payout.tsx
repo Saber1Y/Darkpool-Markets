@@ -41,7 +41,7 @@ export function ClaimPayout({ market, isCreator }: ClaimPayoutProps) {
         address: market.marketAddress,
         abi: predictionMarketAbi,
         functionName: "settleClaim",
-        args: ["0x0000000000000000000000000000000000000000" as `0x${string}`, winner, "0"]
+        args: ["0x0000000000000000000000000000000000000000" as `0x${string}`, winner, 0n]
       });
     } catch (error) {
       console.error("Settle failed:", error);

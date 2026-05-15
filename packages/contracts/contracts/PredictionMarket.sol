@@ -166,7 +166,7 @@ contract PredictionMarket is ZamaEthereumConfig {
     }
 
     /// @notice Top up existing encrypted position amount.
-    function increaseBet(externalEuint32 inputAdditionalAmount, bytes calldata inputProof) external onlyActive {
+    function increaseBet(externalEuint32 inputAdditionalAmount, bytes calldata inputProof) external payable onlyActive {
         if (block.timestamp >= deadline) revert MarketStillActive();
 
         Position storage position = _positions[msg.sender];
@@ -183,6 +183,11 @@ contract PredictionMarket is ZamaEthereumConfig {
         FHE.allowThis(_yesPool);
         FHE.allowThis(_noPool);
         FHE.allow(position.amount, msg.sender);
+
+        if (msg.value > 0) {
+            vault.deposit{value: msg.value}(marketId);
+            emit StakeEscrowed(msg.sender, msg.value);
+        }
 
         emit BetIncreased(msg.sender);
     }

@@ -43,7 +43,8 @@ Respond with a JSON object:
     model: MODEL,
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
-    temperature: 0.3
+    temperature: 0.3,
+    max_tokens: 512
   });
 
   const text = completion.choices[0]?.message?.content;

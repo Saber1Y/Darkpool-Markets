@@ -109,9 +109,9 @@ export function MarketDetailClient({ market }: Props) {
         <BetPanel market={market} />
       </section>
 
-      {isCreator && currentStatus === 1n && (
+      {isCreator && (currentStatus === 0n || currentStatus === 1n) && (
         <section className="mb-8">
-          <h2 className="mb-4 text-lg font-medium text-slate-100">Resolution</h2>
+          <h2 className="mb-4 text-lg font-medium text-slate-100">{currentStatus === 0n ? "Close Market" : "Resolution"}</h2>
           <ResolveMarket market={market} />
         </section>
       )}
