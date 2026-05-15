@@ -1,16 +1,5 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY ?? process.env.OPENAI_API_KEY,
-  defaultHeaders: {
-    "HTTP-Referer": "https://darkpool.markets",
-    "X-Title": "DarkPool Markets"
-  }
-});
-
-const MODEL = process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini";
-
 export type ResolutionSuggestion = {
   outcomeYes: boolean;
   confidenceYesPct: number;
@@ -20,6 +9,16 @@ export type ResolutionSuggestion = {
 };
 
 export async function suggestResolution(question: string): Promise<ResolutionSuggestion> {
+  const openai = new OpenAI({
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: process.env.OPENROUTER_API_KEY ?? process.env.OPENAI_API_KEY,
+    defaultHeaders: {
+      "HTTP-Referer": "https://darkpool.markets",
+      "X-Title": "DarkPool Markets"
+    }
+  });
+
+  const MODEL = process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini";
   const prompt = `You are an AI market resolver for a prediction market platform.
 
 Given the following market question, determine the most likely outcome.
