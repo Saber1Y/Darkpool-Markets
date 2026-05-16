@@ -34,4 +34,3 @@ Terminal	Command
 1	pnpm node
 2	pnpm setup:local (once)
 3	pnpm dev:web
-Key: Hardhat node = in-memory blockchain. Kill it = contracts gone = run setup:local again.
