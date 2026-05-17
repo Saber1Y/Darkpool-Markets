@@ -6,7 +6,7 @@ const router = Router();
 
 const EncryptSchema = z.object({
   sideYes: z.boolean(),
-  amount: z.number().min(0),
+  amountMilliEth: z.string().regex(/^\d+$/),
   userAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   contractAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/)
 });
@@ -27,9 +27,8 @@ async function rpcCall(method: string, params: unknown[]): Promise<any> {
 
 router.post("/encrypt-bet", async (req: Request, res: Response) => {
   try {
-    const { sideYes, amount, userAddress, contractAddress } = EncryptSchema.parse(req.body);
-
-    const rawAmount = BigInt(Math.round(amount * 1000));
+    const { sideYes, amountMilliEth, userAddress, contractAddress } = EncryptSchema.parse(req.body);
+    const rawAmount = BigInt(amountMilliEth);
 
     const fheTypes = [0, 4];
     const fhevmTypes = [0, 4];

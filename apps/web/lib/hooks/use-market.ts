@@ -6,8 +6,8 @@ import { predictionMarketAbi } from "../contracts/abi";
 import { parseEther } from "viem";
 
 type UseUserPositionResult = {
-  sideYes: boolean | null;
-  amount: bigint | null;
+  sideYesHandle: `0x${string}` | null;
+  amountHandle: `0x${string}` | null;
   exists: boolean;
   claimed: boolean;
   isLoading: boolean;
@@ -26,12 +26,20 @@ export function useUserPosition(marketAddress: `0x${string}`): UseUserPositionRe
 
   return useMemo(() => {
     if (!address || !data) {
-      return { sideYes: null, amount: null, exists: false, claimed: false, isLoading: false, error: null, refetch };
+      return {
+        sideYesHandle: null,
+        amountHandle: null,
+        exists: false,
+        claimed: false,
+        isLoading: false,
+        error: null,
+        refetch
+      };
     }
     const [handlesSideYes, handlesAmount, exists, claimed] = data;
     return {
-      sideYes: handlesSideYes as unknown as boolean,
-      amount: handlesAmount as unknown as bigint,
+      sideYesHandle: handlesSideYes as `0x${string}`,
+      amountHandle: handlesAmount as `0x${string}`,
       exists,
       claimed,
       isLoading,

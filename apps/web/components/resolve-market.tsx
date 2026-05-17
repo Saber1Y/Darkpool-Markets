@@ -8,11 +8,12 @@ import { LoadingSpinner } from "./loading-spinner";
 
 type ResolveMarketProps = {
   market: MarketView;
+  currentStatus: bigint;
 };
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-export function ResolveMarket({ market }: ResolveMarketProps) {
+export function ResolveMarket({ market, currentStatus }: ResolveMarketProps) {
   const [outcomeYes, setOutcomeYes] = useState(true);
   const [confidenceYesPct, setConfidenceYesPct] = useState("5000");
   const [deltaBps24h, setDeltaBps24h] = useState("0");
@@ -23,8 +24,8 @@ export function ResolveMarket({ market }: ResolveMarketProps) {
   const { writeContractAsync, isPending, data: txHash } = useWriteContract();
   const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash });
 
-  const isClosed = market.status === 1n;
-  const isActive = market.status === 0n;
+  const isClosed = currentStatus === 1n;
+  const isActive = currentStatus === 0n;
 
   const handleClose = async () => {
     try {

@@ -49,7 +49,7 @@ export default async function DashboardPage() {
           <h2 className="mb-4 text-lg font-semibold text-slate-200">Markets Ready to Resolve</h2>
           <div className="grid gap-4">
             {closedMarkets.map((market) => (
-              <ResolveMarket key={market.marketId.toString()} market={market} />
+              <ResolveMarket key={market.marketId.toString()} market={market} currentStatus={market.status} />
             ))}
           </div>
         </section>

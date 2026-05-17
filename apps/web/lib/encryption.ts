@@ -7,7 +7,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
  */
 export async function prepareBetArgs(
   sideYes: boolean,
-  amountWei: bigint
+  amountMilliEth: bigint
 ): Promise<{
   encryptedSide: `0x${string}`;
   encryptedAmount: `0x${string}`;
@@ -18,7 +18,7 @@ export async function prepareBetArgs(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       sideYes,
-      amount: Number(amountWei)
+      amountMilliEth: amountMilliEth.toString()
     })
   });
 

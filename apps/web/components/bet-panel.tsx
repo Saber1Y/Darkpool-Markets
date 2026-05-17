@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
+import { parseEther, parseUnits } from "viem";
 import { usePlaceBet, useIncreaseBet, useUserPosition } from "../lib/hooks/use-market";
 import { LoadingSpinner } from "./loading-spinner";
 import type { MarketView } from "../lib/contracts/markets";
@@ -31,9 +32,10 @@ export function BetPanel({ market }: BetPanelProps) {
   const [amount, setAmount] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [decryptedSide, setDecryptedSide] = useState<boolean | null>(null);
   const [decryptedAmount, setDecryptedAmount] = useState<string | null>(null);
 
-  const { sideYes: existingSide, amount: existingAmount, exists: hasExistingPosition, claimed, refetch } =
+  const { sideYesHandle, amountHandle, exists: hasExistingPosition, claimed, refetch } =
     useUserPosition(market.marketAddress);
   const { placeBet, isLoading: isPlacing, txHash: placeTxHash, isConfirming: isPlaceConfirming } = usePlaceBet();
   const { increaseBet, isLoading: isIncreasing, txHash: increaseTxHash, isConfirming: isIncreaseConfirming } = useIncreaseBet();
@@ -70,17 +72,60 @@ export function BetPanel({ market }: BetPanelProps) {
   }, [isIncreaseConfirming, increaseTxHash, confirmRefetch]);
 
   useEffect(() => {
-    if (hasExistingPosition && existingAmount) {
-      decryptHandle(existingAmount as unknown as `0x${string}`).then(v => {
-        const eth = Number(v) / 1000;
-        setDecryptedAmount(eth > 0 ? eth.toFixed(4) : null);
-      });
+    let cancelled = false;
+
+    if (!hasExistingPosition || !sideYesHandle || !amountHandle) {
+      setDecryptedSide(null);
+      setDecryptedAmount(null);
+      return;
     }
-  }, [hasExistingPosition, existingAmount]);
+
+    Promise.all([decryptHandle(sideYesHandle), decryptHandle(amountHandle)])
+      .then(([sideValue, amountValue]) => {
+        if (cancelled) return;
+        setDecryptedSide(sideValue === 1n);
+        const amountEth = Number(amountValue) / 1000;
+        setDecryptedAmount(amountEth > 0 ? amountEth.toFixed(4) : null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDecryptedSide(null);
+        setDecryptedAmount(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasExistingPosition, sideYesHandle, amountHandle]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || parseFloat(amount) <= 0) {
+    if (!amount) {
+      setLocalError("Please enter a valid amount");
+      return;
+    }
+
+    if (!userAddress) {
+      setLocalError("Connect wallet before submitting a bet.");
+      return;
+    }
+
+    if (hasExistingPosition && decryptedSide === null) {
+      setLocalError("Waiting for your encrypted side to decrypt. Please try again in a moment.");
+      return;
+    }
+
+    let amountWei: bigint;
+    let amountMilliEth: bigint;
+    try {
+      amountWei = parseEther(amount);
+      amountMilliEth = parseUnits(amount, 3);
+    } catch {
+      setLocalError("Invalid amount. Use a positive value with up to 3 decimal places.");
+      return;
+    }
+
+    if (amountWei <= 0n) {
       setLocalError("Please enter a valid amount");
       return;
     }
@@ -91,8 +136,8 @@ export function BetPanel({ market }: BetPanelProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sideYes: hasExistingPosition ? existingSide : side === "yes",
-          amount: parseFloat(amount),
+          sideYes: hasExistingPosition ? decryptedSide : side === "yes",
+          amountMilliEth: amountMilliEth.toString(),
           userAddress,
           contractAddress: market.marketAddress
         })
@@ -170,12 +215,12 @@ export function BetPanel({ market }: BetPanelProps) {
         <h3 className="text-sm font-medium text-slate-200">Your Current Position</h3>
         <div className="mt-3 grid gap-2 text-sm">
           <p className="text-slate-400">
-            Side: <span className="text-slate-200">{existingSide ? "YES" : "NO"}</span>
+            Side: <span className="text-slate-200">{decryptedSide === null ? "Encrypted" : decryptedSide ? "YES" : "NO"}</span>
           </p>
           <p className="text-slate-400">
             Amount:{" "}
             <span className="text-slate-200">
-              {decryptedAmount ? `${decryptedAmount} ETH` : existingAmount ? `${existingAmount.toString()} ETH` : "N/A"}
+              {decryptedAmount ? `${decryptedAmount} ETH` : "Encrypted"}
             </span>
           </p>
         </div>
