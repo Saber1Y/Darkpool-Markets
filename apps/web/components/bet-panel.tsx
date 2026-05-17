@@ -143,8 +143,8 @@ export function BetPanel({ market }: BetPanelProps) {
         })
       });
       if (!encRes.ok) {
-        const errData = await encRes.json().catch(() => ({}));
-        throw new Error((errData as any).error ?? "Encryption failed");
+        const errData = (await encRes.json().catch(() => ({}))) as { error?: string };
+        throw new Error(errData.error ?? "Encryption failed");
       }
       const encData = await encRes.json() as { encryptedSide: `0x${string}`; encryptedAmount: `0x${string}`; proof: `0x${string}` };
 

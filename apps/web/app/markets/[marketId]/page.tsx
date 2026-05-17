@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { getMarketById, statusLabel } from "../../../lib/contracts/markets";
-import { formatDateFromUnix, shortAddress } from "../../../lib/format";
+import { getMarketById } from "../../../lib/contracts/markets";
 import { MarketDetailClient } from "./market-detail-client";
 
 export const dynamic = "force-dynamic";

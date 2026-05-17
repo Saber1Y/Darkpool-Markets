@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useAccount } from "wagmi";
 import { statusLabel } from "../../../lib/contracts/markets";
 import { formatDateFromUnix, shortAddress } from "../../../lib/format";
@@ -21,7 +22,7 @@ export function MarketDetailClient({ market }: Props) {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-5 py-8">
-      <a
+      <Link
         href="/"
         className="mb-5 inline-flex items-center text-sm text-teal-300 transition hover:text-teal-200"
       >
@@ -29,7 +30,7 @@ export function MarketDetailClient({ market }: Props) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
         Back to markets
-      </a>
+      </Link>
 
       <section className="mb-6 rounded-xl border border-slate-800/70 bg-slate-900/40 p-6">
         <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
