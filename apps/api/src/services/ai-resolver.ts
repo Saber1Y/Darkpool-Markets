@@ -9,9 +9,14 @@ export type ResolutionSuggestion = {
 };
 
 export async function suggestResolution(question: string): Promise<ResolutionSuggestion> {
+  const apiKey = process.env.OPENROUTER_API_KEY ?? process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing OPENROUTER_API_KEY (or OPENAI_API_KEY) in apps/api/.env.local. Restart API after updating env.");
+  }
+
   const openai = new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
-    apiKey: process.env.OPENROUTER_API_KEY ?? process.env.OPENAI_API_KEY,
+    apiKey,
     defaultHeaders: {
       "HTTP-Referer": "https://darkpool.markets",
       "X-Title": "DarkPool Markets"

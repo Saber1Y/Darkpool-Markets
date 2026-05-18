@@ -20,6 +20,7 @@ export function ResolveMarket({ market, currentStatus }: ResolveMarketProps) {
   const [signalStrength, setSignalStrength] = useState<0 | 1 | 2>(0);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiReasoning, setAiReasoning] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const { writeContractAsync, isPending, data: txHash } = useWriteContract();
   const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash });
@@ -68,13 +69,17 @@ export function ResolveMarket({ market, currentStatus }: ResolveMarketProps) {
   const handleAiSuggest = async () => {
     setAiLoading(true);
     setAiReasoning(null);
+    setAiError(null);
     try {
       const r = await fetch(`${apiUrl}/api/suggest-resolution`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: market.question })
       });
-      if (!r.ok) throw new Error("AI request failed");
+      if (!r.ok) {
+        const errorPayload = (await r.json().catch(() => ({}))) as { error?: string };
+        throw new Error(errorPayload.error ?? "AI request failed");
+      }
       const data = await r.json() as {
         outcomeYes: boolean;
         confidenceYesPct: number;
@@ -88,6 +93,8 @@ export function ResolveMarket({ market, currentStatus }: ResolveMarketProps) {
       setSignalStrength(data.signalStrength as 0 | 1 | 2);
       setAiReasoning(data.reasoning);
     } catch (error) {
+      const message = error instanceof Error ? error.message : "AI suggest failed";
+      setAiError(message);
       console.error("AI suggest failed:", error);
     } finally {
       setAiLoading(false);
@@ -130,6 +137,11 @@ export function ResolveMarket({ market, currentStatus }: ResolveMarketProps) {
       {aiReasoning && (
         <div className="mb-4 rounded-lg border border-purple-800/50 bg-purple-900/20 p-3">
           <p className="text-xs text-purple-300">{aiReasoning}</p>
+        </div>
+      )}
+      {aiError && (
+        <div className="mb-4 rounded-lg border border-red-800/50 bg-red-900/20 p-3">
+          <p className="text-xs text-red-300">{aiError}</p>
         </div>
       )}
 

@@ -1,5 +1,19 @@
 import dotenv from "dotenv";
-dotenv.config({ path: ".env.local" });
+import fs from "node:fs";
+import path from "node:path";
+
+const envCandidates = [
+  path.resolve(process.cwd(), ".env.local"),
+  path.resolve(process.cwd(), "apps/api/.env.local"),
+  path.resolve(__dirname, "../.env.local")
+];
+
+for (const envPath of envCandidates) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    break;
+  }
+}
 import express from "express";
 import cors from "cors";
 import encryptRouter from "./routes/encrypt";
@@ -19,5 +33,6 @@ app.use("/api", encryptRouter);
 app.use("/api", resolveRouter);
 
 app.listen(port, () => {
-  console.log(`API listening on :${port}`);
+  const hasResolverKey = Boolean(process.env.OPENROUTER_API_KEY ?? process.env.OPENAI_API_KEY);
+  console.log(`API listening on :${port} (resolver key: ${hasResolverKey ? "loaded" : "missing"})`);
 });
