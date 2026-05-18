@@ -5,6 +5,7 @@ import { useAccount } from "wagmi";
 import { parseEther } from "viem";
 import { usePlaceBet, useIncreaseBet, useUserPosition } from "../lib/hooks/use-market";
 import { LoadingSpinner } from "./loading-spinner";
+import { TxHashRow } from "./tx-hash-row";
 import type { MarketView } from "../lib/contracts/markets";
 
 type BetPanelProps = {
@@ -247,6 +248,8 @@ export function BetPanel({ market, currentStatus }: BetPanelProps) {
         </div>
 
         {localError && <p className="mt-2 text-xs text-red-400">{localError}</p>}
+        <TxHashRow label="Add funds tx" hash={increaseTxHash} isConfirming={isIncreaseConfirming} />
+        <TxHashRow label="Place bet tx" hash={placeTxHash} isConfirming={isPlaceConfirming} />
       </form>
     );
   }
@@ -300,6 +303,8 @@ export function BetPanel({ market, currentStatus }: BetPanelProps) {
       </div>
 
       {localError && <p className="mt-2 text-xs text-red-400">{localError}</p>}
+      <TxHashRow label="Place bet tx" hash={placeTxHash} isConfirming={isPlaceConfirming} />
+      <TxHashRow label="Add funds tx" hash={increaseTxHash} isConfirming={isIncreaseConfirming} />
 
       <button
         type="submit"

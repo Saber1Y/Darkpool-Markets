@@ -6,6 +6,7 @@ import { isAddress } from "viem";
 import { predictionMarketAbi } from "../lib/contracts/abi";
 import type { MarketView } from "../lib/contracts/markets";
 import { LoadingSpinner } from "./loading-spinner";
+import { TxHashRow } from "./tx-hash-row";
 
 type ClaimPayoutProps = {
   market: MarketView;
@@ -100,6 +101,7 @@ export function ClaimPayout({ market, isCreator, currentStatus }: ClaimPayoutPro
           {claimResult}
         </p>
       )}
+      <TxHashRow label="Claim/settle tx" hash={txHash} isConfirming={isConfirming} />
 
       {isCreator && (
         <div className="mt-5 rounded-lg border border-slate-800 bg-slate-900/70 p-4">

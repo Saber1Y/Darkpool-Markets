@@ -5,6 +5,7 @@ import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { predictionMarketAbi } from "../lib/contracts/abi";
 import type { MarketView } from "../lib/contracts/markets";
 import { LoadingSpinner } from "./loading-spinner";
+import { TxHashRow } from "./tx-hash-row";
 
 type ResolveMarketProps = {
   market: MarketView;
@@ -116,6 +117,7 @@ export function ResolveMarket({ market, currentStatus }: ResolveMarketProps) {
         >
           {isPending ? <LoadingSpinner size="sm" /> : "Close Market"}
         </button>
+        <TxHashRow label="Close market tx" hash={txHash} isConfirming={isConfirming} />
       </div>
     );
   }
@@ -229,6 +231,7 @@ export function ResolveMarket({ market, currentStatus }: ResolveMarketProps) {
           {isPending ? <LoadingSpinner size="sm" /> : "Resolve Market"}
         </button>
       </div>
+      <TxHashRow label="Latest resolver tx" hash={txHash} isConfirming={isConfirming} />
     </div>
   );
 }
