@@ -178,10 +178,13 @@ export function BetPanel({ market, currentStatus }: BetPanelProps) {
   }
 
   if (currentStatus !== 0n) {
+    const marketStateLabel =
+      currentStatus === 1n ? "closed" : currentStatus === 2n ? "resolved" : currentStatus === 3n ? "cancelled" : "unavailable";
+
     return (
       <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
         <p className="text-sm text-slate-400">
-          This market is {currentStatus === 1n ? "closed" : currentStatus === 2n ? "resolved" : "cancelled"} and
+          This market is {marketStateLabel} and
           no longer accepting bets.
         </p>
       </div>

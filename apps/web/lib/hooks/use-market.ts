@@ -116,5 +116,11 @@ export function useMarketStatus(marketAddress: `0x${string}`) {
     functionName: "status"
   });
 
-  return { status: data as unknown as bigint | undefined, isLoading, error };
+  const status = useMemo(() => {
+    if (typeof data === "bigint") return data;
+    if (typeof data === "number") return BigInt(data);
+    return undefined;
+  }, [data]);
+
+  return { status, isLoading, error };
 }
