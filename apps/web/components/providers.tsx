@@ -6,10 +6,12 @@ import { WagmiProvider, createConfig, http } from "wagmi";
 import { hardhat } from "wagmi/chains";
 import { ReactNode, useState } from "react";
 
+const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? "http://127.0.0.1:8545";
+
 const config = createConfig({
   chains: [hardhat],
   transports: {
-    [hardhat.id]: http()
+    [hardhat.id]: http(rpcUrl)
   }
 });
 

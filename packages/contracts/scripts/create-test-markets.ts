@@ -17,11 +17,11 @@ async function main() {
   const vaultAddress = await factory.vault();
   const vault = await ethers.getContractAt("MarketVault", vaultAddress, deployer);
 
-  // Market A: deadline already expired → can close immediately after betting
-  const pastDeadline = BigInt(now - 60); // 1 minute ago
+  // Market A: short deadline so it can be closed quickly.
+  const nearDeadline = BigInt(now + 60); // 1 minute from now
   const tx1 = await factory.createMarket(
     "[TEST] Can I close + resolve immediately?",
-    pastDeadline,
+    nearDeadline,
     "ipfs://test-expired"
   );
   const r1 = await tx1.wait();
@@ -70,10 +70,10 @@ async function main() {
 ║               TEST MARKETS READY                            ║
 ╠══════════════════════════════════════════════════════════════╣
 ║                                                              ║
-║  Market A (EXPIRED deadline):                                ║
+  ║  Market A (short deadline):                                  ║
 ║    ID:      ${expiredId.toString().padEnd(35)}║
 ║    Address: ${expiredAddr!.padEnd(42)}║
-║    Status:  Expired — close/resolve immediately after bet   ║
+  ║    Status:  Active for ~60s — close/resolve after expiry     ║
 ║                                                              ║
 ║  Market B (90s deadline):                                    ║
 ║    ID:      ${futureId.toString().padEnd(35)}║
@@ -86,7 +86,7 @@ async function main() {
 ║  2. Connect MetaMask to Hardhat (chain ID 31337)             ║
 ║  3. Find the [TEST] market you want to test                  ║
 ║  4. Place a bet (YES or NO, any amount)                      ║
-║  5. For Market A: close AND resolve immediately              ║
+  ║  5. For Market A: wait ~60s, then close & resolve            ║
 ║     For Market B: wait ~90 seconds, then close & resolve     ║
 ║  6. After resolving, claim your winnings                     ║
 ║                                                              ║

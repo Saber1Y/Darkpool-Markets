@@ -99,7 +99,7 @@ export function ResolveMarket({ market, currentStatus }: ResolveMarketProps) {
       <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
         <h3 className="mb-4 text-lg font-medium text-slate-100">Close Market</h3>
         <p className="mb-4 text-sm text-slate-400">
-          Deadline has passed. Close the market to stop accepting bets and enable resolution.
+          Close the market after the deadline to stop accepting bets and enable resolution.
         </p>
         <button
           type="button"

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 pragma solidity ^0.8.24;
 
-import {FHE, ebool, euint32, externalEbool, externalEuint32} from "@fhevm/solidity/lib/FHE.sol";
+import {FHE, ebool, euint32, externalEbool} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
 interface IMarketVault {
@@ -28,6 +28,7 @@ contract PredictionMarket is ZamaEthereumConfig {
     struct Position {
         ebool sideYes;
         euint32 amount;
+        uint256 stakedWei;
         bool exists;
         bool claimed;
     }
@@ -46,6 +47,10 @@ contract PredictionMarket is ZamaEthereumConfig {
     error InvalidConfidenceBps();
     error InvalidVault();
     error InvalidMarketId();
+    error ZeroStake();
+    error InvalidStakeIncrement();
+    error StakeTooLarge();
+    error NoStakeToSettle();
 
     string public question;
     string public metadataURI;
@@ -71,6 +76,8 @@ contract PredictionMarket is ZamaEthereumConfig {
 
     mapping(address => Position) private _positions;
     mapping(address => bool) public claimSettled;
+
+    uint256 public constant STAKE_UNIT_WEI = 1e15; // 0.001 ETH
 
     event BetPlaced(address indexed user);
     event BetIncreased(address indexed user);
@@ -124,22 +131,20 @@ contract PredictionMarket is ZamaEthereumConfig {
     }
 
     /// @notice Place first encrypted bet position.
-    function placeBet(
-        externalEbool inputSideYes,
-        externalEuint32 inputAmount,
-        bytes calldata inputProof
-    ) external payable onlyActive {
+    function placeBet(externalEbool inputSideYes, bytes calldata inputProof) external payable onlyActive {
         if (block.timestamp >= deadline) revert MarketStillActive();
 
         Position storage position = _positions[msg.sender];
         if (position.exists) revert PositionAlreadyExists();
 
+        uint32 amountUnits = _stakeToAmountUnits(msg.value);
         ebool sideYes = FHE.fromExternal(inputSideYes, inputProof);
-        euint32 amount = FHE.fromExternal(inputAmount, inputProof);
+        euint32 amount = FHE.asEuint32(amountUnits);
         euint32 zero = FHE.asEuint32(0);
 
         position.sideYes = sideYes;
         position.amount = amount;
+        position.stakedWei = msg.value;
         position.exists = true;
         position.claimed = false;
 
@@ -157,25 +162,25 @@ contract PredictionMarket is ZamaEthereumConfig {
         FHE.allow(position.sideYes, msg.sender);
         FHE.allow(position.amount, msg.sender);
 
-        if (msg.value > 0) {
-            vault.deposit{value: msg.value}(marketId);
-            emit StakeEscrowed(msg.sender, msg.value);
-        }
+        vault.deposit{value: msg.value}(marketId);
+        emit StakeEscrowed(msg.sender, msg.value);
 
         emit BetPlaced(msg.sender);
     }
 
     /// @notice Top up existing encrypted position amount.
-    function increaseBet(externalEuint32 inputAdditionalAmount, bytes calldata inputProof) external payable onlyActive {
+    function increaseBet() external payable onlyActive {
         if (block.timestamp >= deadline) revert MarketStillActive();
 
         Position storage position = _positions[msg.sender];
         if (!position.exists) revert PositionNotFound();
 
-        euint32 additionalAmount = FHE.fromExternal(inputAdditionalAmount, inputProof);
+        uint32 additionalUnits = _stakeToAmountUnits(msg.value);
+        euint32 additionalAmount = FHE.asEuint32(additionalUnits);
         euint32 zero = FHE.asEuint32(0);
 
         position.amount = FHE.add(position.amount, additionalAmount);
+        position.stakedWei += msg.value;
         _yesPool = FHE.add(_yesPool, FHE.select(position.sideYes, additionalAmount, zero));
         _noPool = FHE.add(_noPool, FHE.select(position.sideYes, zero, additionalAmount));
 
@@ -184,10 +189,8 @@ contract PredictionMarket is ZamaEthereumConfig {
         FHE.allowThis(_noPool);
         FHE.allow(position.amount, msg.sender);
 
-        if (msg.value > 0) {
-            vault.deposit{value: msg.value}(marketId);
-            emit StakeEscrowed(msg.sender, msg.value);
-        }
+        vault.deposit{value: msg.value}(marketId);
+        emit StakeEscrowed(msg.sender, msg.value);
 
         emit BetIncreased(msg.sender);
     }
@@ -265,17 +268,32 @@ contract PredictionMarket is ZamaEthereumConfig {
 
     /// @notice Settles a user claim and triggers vault payout when winner.
     /// @dev Winner verification is expected to happen off-chain from decrypted claim proof.
-    function settleClaim(address payable user, bool winner, uint256 payoutWei) external onlyResolverOrCreator {
+    function settleClaim(address payable user, bool winner) external onlyResolverOrCreator {
         Position storage position = _positions[user];
         if (!position.exists) revert PositionNotFound();
         if (!position.claimed) revert ClaimNotRequested();
         if (claimSettled[user]) revert ClaimAlreadySettled();
 
+        uint256 payoutWei = 0;
+        if (winner) {
+            payoutWei = position.stakedWei;
+            if (payoutWei == 0) revert NoStakeToSettle();
+        }
+
         claimSettled[user] = true;
-        if (winner && payoutWei > 0) {
+        if (payoutWei > 0) {
             vault.disbursePayoutFromMarket(marketId, user, payoutWei);
         }
 
         emit ClaimSettled(user, winner, payoutWei);
+    }
+
+    function _stakeToAmountUnits(uint256 stakeWei) internal pure returns (uint32 amountUnits) {
+        if (stakeWei == 0) revert ZeroStake();
+        if (stakeWei % STAKE_UNIT_WEI != 0) revert InvalidStakeIncrement();
+
+        uint256 units = stakeWei / STAKE_UNIT_WEI;
+        if (units > type(uint32).max) revert StakeTooLarge();
+        amountUnits = uint32(units);
     }
 }

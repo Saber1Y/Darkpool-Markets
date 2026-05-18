@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { isAddress, parseEther } from "viem";
+import { isAddress } from "viem";
 import { predictionMarketAbi } from "../lib/contracts/abi";
 import type { MarketView } from "../lib/contracts/markets";
 import { LoadingSpinner } from "./loading-spinner";
@@ -10,16 +10,16 @@ import { LoadingSpinner } from "./loading-spinner";
 type ClaimPayoutProps = {
   market: MarketView;
   isCreator: boolean;
+  currentStatus: bigint;
 };
 
-export function ClaimPayout({ market, isCreator }: ClaimPayoutProps) {
+export function ClaimPayout({ market, isCreator, currentStatus }: ClaimPayoutProps) {
   const { address } = useAccount();
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimResult, setClaimResult] = useState<string | null>(null);
   const [isSettling, setIsSettling] = useState(false);
   const [settleResult, setSettleResult] = useState<string | null>(null);
   const [settleAddress, setSettleAddress] = useState("");
-  const [settlePayoutEth, setSettlePayoutEth] = useState("");
   const [settleWinner, setSettleWinner] = useState(market.resolvedOutcome);
 
   const { writeContractAsync, isPending, data: txHash } = useWriteContract();
@@ -55,19 +55,6 @@ export function ClaimPayout({ market, isCreator }: ClaimPayoutProps) {
       return;
     }
 
-    let payoutWei: bigint;
-    try {
-      payoutWei = parseEther(settlePayoutEth || "0");
-    } catch {
-      setSettleResult("Settle failed: payout amount is invalid.");
-      return;
-    }
-
-    if (settleWinner && payoutWei === 0n) {
-      setSettleResult("Settle failed: winner payout must be greater than 0.");
-      return;
-    }
-
     try {
       setIsSettling(true);
       setSettleResult(null);
@@ -75,7 +62,7 @@ export function ClaimPayout({ market, isCreator }: ClaimPayoutProps) {
         address: market.marketAddress,
         abi: predictionMarketAbi,
         functionName: "settleClaim",
-        args: [settleAddress as `0x${string}`, settleWinner, payoutWei]
+        args: [settleAddress as `0x${string}`, settleWinner]
       });
       setSettleResult("Settlement transaction submitted.");
     } catch (error) {
@@ -85,7 +72,7 @@ export function ClaimPayout({ market, isCreator }: ClaimPayoutProps) {
     }
   };
 
-  if (market.status !== 2n) return null;
+  if (currentStatus !== 2n) return null;
 
   return (
     <div className="rounded-xl border border-slate-800/70 bg-slate-900/40 p-5">
@@ -118,22 +105,13 @@ export function ClaimPayout({ market, isCreator }: ClaimPayoutProps) {
         <div className="mt-5 rounded-lg border border-slate-800 bg-slate-900/70 p-4">
           <p className="text-sm font-medium text-slate-200">Settle a User Claim (Creator)</p>
 
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid gap-3">
             <label className="text-xs text-slate-400">
               Recipient Address
               <input
                 value={settleAddress}
                 onChange={(e) => setSettleAddress(e.target.value)}
                 placeholder="0x..."
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200"
-              />
-            </label>
-            <label className="text-xs text-slate-400">
-              Payout (ETH)
-              <input
-                value={settlePayoutEth}
-                onChange={(e) => setSettlePayoutEth(e.target.value)}
-                placeholder="0.0"
                 className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200"
               />
             </label>

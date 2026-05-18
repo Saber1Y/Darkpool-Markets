@@ -7,10 +7,10 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
  */
 export async function prepareBetArgs(
   sideYes: boolean,
-  amountMilliEth: bigint
+  userAddress: `0x${string}`,
+  contractAddress: `0x${string}`
 ): Promise<{
   encryptedSide: `0x${string}`;
-  encryptedAmount: `0x${string}`;
   proof: `0x${string}`;
 }> {
   const response = await fetch(`${API_BASE}/api/encrypt-bet`, {
@@ -18,7 +18,8 @@ export async function prepareBetArgs(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       sideYes,
-      amountMilliEth: amountMilliEth.toString()
+      userAddress,
+      contractAddress
     })
   });
 
@@ -30,7 +31,6 @@ export async function prepareBetArgs(
   const data = await response.json();
   return {
     encryptedSide: data.encryptedSide,
-    encryptedAmount: data.encryptedAmount,
     proof: data.proof
   };
 }

@@ -60,7 +60,7 @@ async function main() {
 ║                                                              ║
 ║     curl http://127.0.0.1:8545 -H "Content-Type:             ║
 ║       application/json" -d '{"jsonrpc":"2.0","id":1,         ║
-║       "method":"evm_mine",[]}'                                ║
+║       "method":"evm_mine","params":[]}'                       ║
 ║                                                              ║
 ║  5. Refresh browser — UI will auto-detect new status        ║
 ║  6. Close Market button appears — click it                  ║

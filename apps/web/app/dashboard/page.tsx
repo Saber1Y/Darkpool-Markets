@@ -1,4 +1,4 @@
-import { getMarkets } from "../../lib/contracts/markets";
+import { getMarkets, type MarketView } from "../../lib/contracts/markets";
 import { ResolveMarket } from "../../components/resolve-market";
 import { Container } from "../../components/ui/container";
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/card";
@@ -7,7 +7,13 @@ import { Badge } from "../../components/ui/badge";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const markets = await getMarkets(0n, 100n);
+  let markets: MarketView[] = [];
+  let loadError: string | null = null;
+  try {
+    markets = await getMarkets(0n, 100n);
+  } catch (error) {
+    loadError = error instanceof Error ? error.message : "Failed to load markets from RPC.";
+  }
 
   const activeMarkets = markets.filter((m) => m.status === 0n);
   const closedMarkets = markets.filter((m) => m.status === 1n);
@@ -16,6 +22,13 @@ export default async function DashboardPage() {
   return (
     <Container size="lg" className="py-8">
       <h1 className="mb-6 text-2xl font-bold text-slate-100">Resolver Dashboard</h1>
+
+      {loadError && (
+        <div className="mb-6 rounded-xl border border-amber-700/40 bg-amber-900/10 p-5">
+          <p className="text-sm font-medium text-amber-200">Could not load markets</p>
+          <p className="mt-2 text-xs text-amber-300/90">{loadError}</p>
+        </div>
+      )}
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <Card>

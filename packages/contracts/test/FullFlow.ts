@@ -39,8 +39,8 @@ describe("Full Flow: place → increase → close → snapshot → resolve → c
     await fhevm.assertCoprocessorInitialized(market, "PredictionMarket");
 
     // ── Step 1: Alice places initial bet ──
-    const initialBet = await fhevm.createEncryptedInput(marketAddress, alice.address).addBool(true).add32(25).encrypt();
-    let tx = await market.connect(alice).placeBet(initialBet.handles[0], initialBet.handles[1], initialBet.inputProof, {
+    const initialBet = await fhevm.createEncryptedInput(marketAddress, alice.address).addBool(true).encrypt();
+    let tx = await market.connect(alice).placeBet(initialBet.handles[0], initialBet.inputProof, {
       value: ethers.parseEther("1")
     });
     await tx.wait();
@@ -49,23 +49,22 @@ describe("Full Flow: place → increase → close → snapshot → resolve → c
     expect(exists).to.eq(true);
     expect(claimed).to.eq(false);
     expect(await fhevm.userDecryptEbool(encSide, marketAddress, alice)).to.eq(true);
-    expect(await fhevm.userDecryptEuint(FhevmType.euint32, encAmount, marketAddress, alice)).to.eq(25n);
+    expect(await fhevm.userDecryptEuint(FhevmType.euint32, encAmount, marketAddress, alice)).to.eq(1000n);
     expect(await vault.escrowByMarket(marketId)).to.eq(ethers.parseEther("1"));
 
     // ── Step 2: Alice increases bet WITH additional ETH (payable increaseBet) ──
-    const topUpBet = await fhevm.createEncryptedInput(marketAddress, alice.address).add32(5).encrypt();
-    tx = await market.connect(alice).increaseBet(topUpBet.handles[0], topUpBet.inputProof, {
+    tx = await market.connect(alice).increaseBet({
       value: ethers.parseEther("0.5")
     });
     await tx.wait();
 
     [encSide, encAmount, exists, claimed] = await market.connect(alice).getMyPosition();
-    expect(await fhevm.userDecryptEuint(FhevmType.euint32, encAmount, marketAddress, alice)).to.eq(30n);
+    expect(await fhevm.userDecryptEuint(FhevmType.euint32, encAmount, marketAddress, alice)).to.eq(1500n);
     expect(await vault.escrowByMarket(marketId)).to.eq(ethers.parseEther("1.5"));
 
     // ── Step 3: Bob places a NO bet ──
-    const bobBet = await fhevm.createEncryptedInput(marketAddress, bob.address).addBool(false).add32(10).encrypt();
-    tx = await market.connect(bob).placeBet(bobBet.handles[0], bobBet.handles[1], bobBet.inputProof, {
+    const bobBet = await fhevm.createEncryptedInput(marketAddress, bob.address).addBool(false).encrypt();
+    tx = await market.connect(bob).placeBet(bobBet.handles[0], bobBet.inputProof, {
       value: ethers.parseEther("0.5")
     });
     await tx.wait();
@@ -74,8 +73,8 @@ describe("Full Flow: place → increase → close → snapshot → resolve → c
     tx = await market.connect(owner).grantPoolAccess(alice.address);
     await tx.wait();
     const [encYesPool, encNoPool] = await market.getEncryptedPools();
-    expect(await fhevm.userDecryptEuint(FhevmType.euint32, encYesPool, marketAddress, alice)).to.eq(30n);
-    expect(await fhevm.userDecryptEuint(FhevmType.euint32, encNoPool, marketAddress, alice)).to.eq(10n);
+    expect(await fhevm.userDecryptEuint(FhevmType.euint32, encYesPool, marketAddress, alice)).to.eq(1500n);
+    expect(await fhevm.userDecryptEuint(FhevmType.euint32, encNoPool, marketAddress, alice)).to.eq(500n);
     expect(await market.participantCount()).to.eq(2n);
     expect(await vault.escrowByMarket(marketId)).to.eq(ethers.parseEther("2"));
 
@@ -113,28 +112,28 @@ describe("Full Flow: place → increase → close → snapshot → resolve → c
     const aliceBefore = await ethers.provider.getBalance(alice.address);
     const feeBefore = await ethers.provider.getBalance(feeRecipient.address);
 
-    tx = await market.connect(resolver).settleClaim(alice.address, true, ethers.parseEther("1"));
+    tx = await market.connect(resolver).settleClaim(alice.address, true);
     await tx.wait();
 
     const aliceAfter = await ethers.provider.getBalance(alice.address);
     const feeAfter = await ethers.provider.getBalance(feeRecipient.address);
 
     expect(await market.claimSettled(alice.address)).to.eq(true);
-    expect(aliceAfter - aliceBefore).to.eq(ethers.parseEther("0.98"));
-    expect(feeAfter - feeBefore).to.eq(ethers.parseEther("0.02"));
+    expect(aliceAfter - aliceBefore).to.eq(ethers.parseEther("1.47"));
+    expect(feeAfter - feeBefore).to.eq(ethers.parseEther("0.03"));
 
     // ── Step 10: Bob claims (loser) ──
     tx = await market.connect(bob).claim();
     await tx.wait();
 
     const bobBefore = await ethers.provider.getBalance(bob.address);
-    tx = await market.connect(resolver).settleClaim(bob.address, false, 0n);
+    tx = await market.connect(resolver).settleClaim(bob.address, false);
     await tx.wait();
     expect(await market.claimSettled(bob.address)).to.eq(true);
     expect(await ethers.provider.getBalance(bob.address) - bobBefore).to.eq(0n);
 
     // ── Step 11: Remaining escrow ──
-    expect(await vault.escrowByMarket(marketId)).to.eq(ethers.parseEther("1"));
+    expect(await vault.escrowByMarket(marketId)).to.eq(ethers.parseEther("0.5"));
   });
 
   it("cannot close market before deadline", async function () {
@@ -150,9 +149,9 @@ describe("Full Flow: place → increase → close → snapshot → resolve → c
     await ethers.provider.send("evm_mine", []);
     await market.connect(resolver).resolveMarket(true);
 
-    const bet = await fhevm.createEncryptedInput(marketAddress, alice.address).addBool(true).add32(1).encrypt();
+    const bet = await fhevm.createEncryptedInput(marketAddress, alice.address).addBool(true).encrypt();
     await expect(
-      market.connect(alice).placeBet(bet.handles[0], bet.handles[1], bet.inputProof)
+      market.connect(alice).placeBet(bet.handles[0], bet.inputProof, { value: ethers.parseEther("0.001") })
     ).to.be.revertedWithCustomError(market, "InvalidStatus");
   });
 
@@ -177,8 +176,8 @@ describe("Full Flow: place → increase → close → snapshot → resolve → c
   it("cannot claim twice", async function () {
     const { alice, resolver, market, marketAddress } = await deployFixture();
 
-    const bet = await fhevm.createEncryptedInput(marketAddress, alice.address).addBool(true).add32(1).encrypt();
-    let tx = await market.connect(alice).placeBet(bet.handles[0], bet.handles[1], bet.inputProof, {
+    const bet = await fhevm.createEncryptedInput(marketAddress, alice.address).addBool(true).encrypt();
+    let tx = await market.connect(alice).placeBet(bet.handles[0], bet.inputProof, {
       value: ethers.parseEther("0.1")
     });
     await tx.wait();

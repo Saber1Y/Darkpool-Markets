@@ -6,7 +6,6 @@ const router = Router();
 
 const EncryptSchema = z.object({
   sideYes: z.boolean(),
-  amountMilliEth: z.string().regex(/^\d+$/),
   userAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   contractAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/)
 });
@@ -27,13 +26,11 @@ async function rpcCall(method: string, params: unknown[]): Promise<any> {
 
 router.post("/encrypt-bet", async (req: Request, res: Response) => {
   try {
-    const { sideYes, amountMilliEth, userAddress, contractAddress } = EncryptSchema.parse(req.body);
-    const rawAmount = BigInt(amountMilliEth);
+    const { sideYes, userAddress, contractAddress } = EncryptSchema.parse(req.body);
 
-    const fheTypes = [0, 4];
-    const fhevmTypes = [0, 4];
+    const fheTypes = [0];
+    const fhevmTypes = [0];
     const rand1 = crypto.randomBytes(32);
-    const rand2 = crypto.randomBytes(32);
 
     const metadata = await rpcCall("fhevm_relayer_metadata", []);
     const aclContractAddress: string = metadata.ACLAddress;
@@ -46,19 +43,16 @@ router.post("/encrypt-bet", async (req: Request, res: Response) => {
       extraData: "0x00",
       mockData: {
         clearTextValuesBigIntHex: [
-          "0x" + (sideYes ? "1" : "0"),
-          "0x" + rawAmount.toString(16)
+          "0x" + (sideYes ? "1" : "0")
         ],
         metadatas: [
-          { blockNumber: 0, index: 0, transactionHash: "0x" + "0".repeat(64) },
           { blockNumber: 0, index: 0, transactionHash: "0x" + "0".repeat(64) }
         ],
         fheTypes,
         fhevmTypes,
         aclContractAddress,
         random32List: [
-          "0x" + Buffer.from(rand1).toString("hex"),
-          "0x" + Buffer.from(rand2).toString("hex")
+          "0x" + Buffer.from(rand1).toString("hex")
         ]
       }
     };
@@ -83,7 +77,6 @@ router.post("/encrypt-bet", async (req: Request, res: Response) => {
 
     res.json({
       encryptedSide: ("0x" + handles[0]) as `0x${string}`,
-      encryptedAmount: ("0x" + handles[1]) as `0x${string}`,
       proof: inputProofHex as `0x${string}`
     });
   } catch (error) {
@@ -99,6 +92,18 @@ const DecryptSchema = z.object({
 
 router.post("/decrypt", async (req: Request, res: Response) => {
   try {
+    const allowInsecureDecrypt = process.env.ENABLE_INSECURE_DECRYPT === "true";
+    if (!allowInsecureDecrypt) {
+      const configuredToken = process.env.DECRYPT_API_TOKEN;
+      const providedToken = req.header("x-decrypt-token");
+      if (!configuredToken || providedToken !== configuredToken) {
+        res.status(403).json({
+          error: "Decrypt endpoint disabled. Set ENABLE_INSECURE_DECRYPT=true for local debug or provide valid x-decrypt-token."
+        });
+        return;
+      }
+    }
+
     const { handles } = DecryptSchema.parse(req.body);
     const result = await rpcCall("fhevm_getClearText", [handles]);
     res.json({ values: result });

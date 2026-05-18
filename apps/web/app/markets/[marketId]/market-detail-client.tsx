@@ -107,7 +107,7 @@ export function MarketDetailClient({ market }: Props) {
         <h2 className="mb-4 text-lg font-medium text-slate-100">
           {currentStatus === 0n ? "Place Your Bet" : "Your Position"}
         </h2>
-        <BetPanel market={market} />
+        <BetPanel market={market} currentStatus={currentStatus} />
       </section>
 
       {isCreator && (currentStatus === 0n || currentStatus === 1n) && (
@@ -120,7 +120,7 @@ export function MarketDetailClient({ market }: Props) {
       {currentStatus === 2n && (
         <section className="mb-8">
           <h2 className="mb-4 text-lg font-medium text-slate-100">Claim Payout</h2>
-          <ClaimPayout market={market} isCreator={isCreator} />
+          <ClaimPayout market={market} isCreator={isCreator} currentStatus={currentStatus} />
         </section>
       )}
     </main>

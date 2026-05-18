@@ -2,16 +2,18 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
-import { parseEther, parseUnits } from "viem";
+import { parseEther } from "viem";
 import { usePlaceBet, useIncreaseBet, useUserPosition } from "../lib/hooks/use-market";
 import { LoadingSpinner } from "./loading-spinner";
 import type { MarketView } from "../lib/contracts/markets";
 
 type BetPanelProps = {
   market: MarketView;
+  currentStatus: bigint;
 };
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const STAKE_UNIT_WEI = 1_000_000_000_000_000n; // 0.001 ETH
 
 async function decryptHandle(handle: `0x${string}`): Promise<bigint> {
   const r = await fetch(`${apiUrl}/api/decrypt`, {
@@ -19,14 +21,14 @@ async function decryptHandle(handle: `0x${string}`): Promise<bigint> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ handles: [handle] })
   });
-  if (!r.ok) return 0n;
+  if (!r.ok) throw new Error("Decrypt endpoint unavailable");
   const d = await r.json() as { values: string[] };
   const v = d.values[0];
   if (!v || v === "0x") return 0n;
   return BigInt(v);
 }
 
-export function BetPanel({ market }: BetPanelProps) {
+export function BetPanel({ market, currentStatus }: BetPanelProps) {
   const { isConnected, address: userAddress } = useAccount();
   const [side, setSide] = useState<"yes" | "no">("yes");
   const [amount, setAmount] = useState("");
@@ -110,18 +112,11 @@ export function BetPanel({ market }: BetPanelProps) {
       return;
     }
 
-    if (hasExistingPosition && decryptedSide === null) {
-      setLocalError("Waiting for your encrypted side to decrypt. Please try again in a moment.");
-      return;
-    }
-
     let amountWei: bigint;
-    let amountMilliEth: bigint;
     try {
       amountWei = parseEther(amount);
-      amountMilliEth = parseUnits(amount, 3);
     } catch {
-      setLocalError("Invalid amount. Use a positive value with up to 3 decimal places.");
+      setLocalError("Invalid amount. Use a positive value and match the market increment (0.001 ETH).");
       return;
     }
 
@@ -129,38 +124,38 @@ export function BetPanel({ market }: BetPanelProps) {
       setLocalError("Please enter a valid amount");
       return;
     }
+    if (amountWei % STAKE_UNIT_WEI !== 0n) {
+      setLocalError("Amount must use 0.001 ETH increments.");
+      return;
+    }
 
     try {
       setSuccessMsg(null);
-      const encRes = await fetch(`${apiUrl}/api/encrypt-bet`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sideYes: hasExistingPosition ? decryptedSide : side === "yes",
-          amountMilliEth: amountMilliEth.toString(),
-          userAddress,
-          contractAddress: market.marketAddress
-        })
-      });
-      if (!encRes.ok) {
-        const errData = (await encRes.json().catch(() => ({}))) as { error?: string };
-        throw new Error(errData.error ?? "Encryption failed");
-      }
-      const encData = await encRes.json() as { encryptedSide: `0x${string}`; encryptedAmount: `0x${string}`; proof: `0x${string}` };
-
       if (hasExistingPosition) {
         await increaseBet({
           marketAddress: market.marketAddress,
-          additionalAmount: amount,
-          encryptedAmount: encData.encryptedAmount,
-          proof: encData.proof
+          additionalAmount: amount
         });
       } else {
+        const encRes = await fetch(`${apiUrl}/api/encrypt-bet`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sideYes: side === "yes",
+            userAddress,
+            contractAddress: market.marketAddress
+          })
+        });
+        if (!encRes.ok) {
+          const errData = (await encRes.json().catch(() => ({}))) as { error?: string };
+          throw new Error(errData.error ?? "Encryption failed");
+        }
+        const encData = await encRes.json() as { encryptedSide: `0x${string}`; proof: `0x${string}` };
+
         await placeBet({
           marketAddress: market.marketAddress,
           amount,
           encryptedSide: encData.encryptedSide,
-          encryptedAmount: encData.encryptedAmount,
           proof: encData.proof
         });
       }
@@ -171,7 +166,7 @@ export function BetPanel({ market }: BetPanelProps) {
 
   const isPending = isPlacing || isIncreasing;
   const isDisabled =
-    market.status !== 0n || !isConnected || isPending || (hasExistingPosition && claimed);
+    currentStatus !== 0n || !isConnected || isPending || (hasExistingPosition && claimed);
 
   if (successMsg) {
     return (
@@ -182,11 +177,11 @@ export function BetPanel({ market }: BetPanelProps) {
     );
   }
 
-  if (market.status !== 0n) {
+  if (currentStatus !== 0n) {
     return (
       <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
         <p className="text-sm text-slate-400">
-          This market is {market.status === 1n ? "closed" : market.status === 2n ? "resolved" : "cancelled"} and
+          This market is {currentStatus === 1n ? "closed" : currentStatus === 2n ? "resolved" : "cancelled"} and
           no longer accepting bets.
         </p>
       </div>
