@@ -34,5 +34,9 @@ app.use("/api", resolveRouter);
 
 app.listen(port, () => {
   const hasResolverKey = Boolean(process.env.OPENROUTER_API_KEY ?? process.env.OPENAI_API_KEY);
-  console.log(`API listening on :${port} (resolver key: ${hasResolverKey ? "loaded" : "missing"})`);
+  const encryptionMode = process.env.FHEVM_ENCRYPTION_MODE ?? "auto";
+  const rpc = process.env.FHEVM_RPC_URL ?? process.env.SEPOLIA_RPC_URL ?? process.env.HARDHAT_RPC_URL ?? "n/a";
+  console.log(
+    `API listening on :${port} (resolver key: ${hasResolverKey ? "loaded" : "missing"}, encryption mode: ${encryptionMode}, rpc: ${rpc})`
+  );
 });

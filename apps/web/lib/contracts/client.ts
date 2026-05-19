@@ -8,8 +8,25 @@ function requireEnv(name: string): string {
   return value;
 }
 
+export function getChainId(): number {
+  const parsed = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 31337);
+  return Number.isFinite(parsed) ? parsed : 31337;
+}
+
+function isLocalRpcUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost";
+  } catch {
+    return false;
+  }
+}
+
 export function getRpcUrl(): string {
-  return process.env.NEXT_PUBLIC_RPC_URL ?? "http://127.0.0.1:8545";
+  const fallback = getChainId() === 11155111
+    ? "https://ethereum-sepolia-rpc.publicnode.com"
+    : "http://127.0.0.1:8545";
+  return process.env.NEXT_PUBLIC_RPC_URL ?? fallback;
 }
 
 export function getFactoryAddress(): `0x${string}` {
@@ -26,7 +43,18 @@ function unique(values: string[]): string[] {
 
 export function getRpcCandidates(): string[] {
   const configured = getRpcUrl();
-  return unique([configured, configured.replace("127.0.0.1", "localhost"), "http://127.0.0.1:8545", "http://localhost:8545"]);
+  const localCandidates = unique([
+    configured,
+    configured.replace("127.0.0.1", "localhost"),
+    "http://127.0.0.1:8545",
+    "http://localhost:8545"
+  ]);
+
+  if (getChainId() === 31337 || isLocalRpcUrl(configured)) {
+    return localCandidates;
+  }
+
+  return unique([configured]);
 }
 
 export const publicClients: PublicClient[] = getRpcCandidates().map((url) =>

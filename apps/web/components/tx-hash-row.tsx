@@ -17,7 +17,9 @@ export function TxHashRow({ label, hash, isConfirming = false }: TxHashRowProps)
 
   const txUrl = useMemo(() => {
     if (!hash) return null;
-    const rawPrefix = process.env.NEXT_PUBLIC_TX_EXPLORER_URL_PREFIX;
+    const configuredChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 31337);
+    const fallbackPrefix = configuredChainId === 11155111 ? "https://sepolia.etherscan.io/tx" : undefined;
+    const rawPrefix = process.env.NEXT_PUBLIC_TX_EXPLORER_URL_PREFIX ?? fallbackPrefix;
     if (!rawPrefix) return null;
     return `${withTrailingSlash(rawPrefix)}${hash}`;
   }, [hash]);

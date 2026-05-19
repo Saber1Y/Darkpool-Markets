@@ -1,5 +1,5 @@
 import type { PublicClient } from "viem";
-import { getFactoryAddress, getRpcCandidates, publicClients } from "./client";
+import { getChainId, getFactoryAddress, getRpcCandidates, publicClients } from "./client";
 import { marketFactoryAbi, predictionMarketAbi } from "./abi";
 
 type RawMarketRecord = {
@@ -59,8 +59,10 @@ async function readWithRpcFallback<T>(action: (client: PublicClient) => Promise<
 
   throw new Error(
     [
-      "Unable to reach the local RPC or read contract data.",
-      "Start/keep your Hardhat node running, then redeploy and update NEXT_PUBLIC_FACTORY_ADDRESS if needed.",
+      "Unable to reach the configured RPC or read contract data.",
+      getChainId() === 31337
+        ? "Start/keep your Hardhat node running, then redeploy and update NEXT_PUBLIC_FACTORY_ADDRESS if needed."
+        : "Check NEXT_PUBLIC_RPC_URL and NEXT_PUBLIC_FACTORY_ADDRESS for your current network.",
       `Tried endpoints: ${endpoints.join(", ")}`,
       `Errors: ${reasons.join(" | ")}`
     ].join(" ")

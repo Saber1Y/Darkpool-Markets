@@ -7,8 +7,10 @@
     "test": "hardhat test",
     "node": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
     "deploy:zama": "hardhat run scripts/deploy.ts --network zamaTestnet",
     "create-market:local": "hardhat run scripts/create-market.ts --network localhost",
+    "create-market:sepolia": "hardhat run scripts/create-market.ts --network sepolia",
     "create-market:zama": "hardhat run scripts/create-market.ts --network zamaTestnet",
     "setup:local": "hardhat run scripts/setup-local.ts --network localhost",
     "lint": "echo \"No contracts lint yet\""

@@ -8,6 +8,8 @@
     "dev:web": "pnpm --filter @darkpool/web dev",
     "dev:api": "pnpm --filter @darkpool/api dev",
     "dev:contracts": "pnpm --filter @darkpool/contracts node",
+    "deploy:sepolia": "pnpm --filter @darkpool/contracts deploy:sepolia",
+    "create-market:sepolia": "pnpm --filter @darkpool/contracts create-market:sepolia",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint"

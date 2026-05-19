@@ -12,7 +12,9 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   const feeRecipient = process.env.FEE_RECIPIENT ?? deployer.address;
   const feeBps = parseFeeBps(process.env.PLATFORM_FEE_BPS ?? "200");
+  const network = await ethers.provider.getNetwork();
 
+  console.log("Deploying contracts on chainId:", network.chainId.toString());
   console.log("Deploying contracts with:", deployer.address);
   console.log("Fee recipient:", feeRecipient, "Fee bps:", feeBps);
 
@@ -31,9 +33,16 @@ async function main() {
   await marketFactory.waitForDeployment();
 
   console.log("\nDeployment complete:");
-  console.log("MarketResolver:", await resolver.getAddress());
-  console.log("MarketVault   :", await vault.getAddress());
-  console.log("MarketFactory :", await marketFactory.getAddress());
+  const resolverAddress = await resolver.getAddress();
+  const vaultAddress = await vault.getAddress();
+  const factoryAddress = await marketFactory.getAddress();
+  console.log("MarketResolver:", resolverAddress);
+  console.log("MarketVault   :", vaultAddress);
+  console.log("MarketFactory :", factoryAddress);
+
+  console.log("\nEnv helpers:");
+  console.log(`NEXT_PUBLIC_FACTORY_ADDRESS=${factoryAddress}`);
+  console.log(`FACTORY_ADDRESS=${factoryAddress}`);
 }
 
 main().catch((error) => {
