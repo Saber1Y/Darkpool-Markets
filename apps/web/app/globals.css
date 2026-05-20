@@ -2,9 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-0: #050a16;
+  --bg-1: #0b1629;
+  --bg-2: #132039;
+  --ink: #e6edf9;
+  --muted: #95a3bb;
+  --line: #23314b;
+  --yes: #0fb981;
+  --no: #ef5d5d;
+  --focus: #17c9ff;
+}
+
 @layer base {
   * {
-    @apply border-slate-800;
+    @apply border-slate-700/70;
   }
 
   html {
@@ -12,29 +24,50 @@
   }
 
   body {
-    @apply bg-slate-950 text-slate-100 antialiased;
+    background:
+      radial-gradient(1200px 700px at -5% -10%, rgba(23, 201, 255, 0.13), transparent 65%),
+      radial-gradient(1200px 700px at 100% -5%, rgba(15, 185, 129, 0.1), transparent 62%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-0) 60%);
+    color: var(--ink);
+    @apply antialiased;
   }
 
   a {
-    @apply text-teal-300 transition-colors hover:text-teal-200;
+    @apply text-cyan-300 transition-colors hover:text-cyan-200;
   }
 
   button {
-    @apply cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-slate-900;
+    @apply cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-400/80 focus:ring-offset-2 focus:ring-offset-slate-900;
   }
 
   input {
-    @apply focus:outline-none focus:ring-1 focus:ring-teal-500;
+    @apply focus:outline-none focus:ring-1 focus:ring-cyan-400/80;
   }
 }
 
 @layer utilities {
+  .panel {
+    @apply rounded-2xl border border-slate-700/60 bg-slate-900/40 shadow-[0_12px_40px_rgba(0,0,0,0.25)];
+  }
+
+  .market-grid-bg {
+    background-image:
+      linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-position: -1px -1px;
+  }
+
   .text-balance {
     text-wrap: balance;
   }
 
   .animate-in {
-    animation: animate-in 0.3s ease-out;
+    animation: animate-in 0.35s ease-out;
+  }
+
+  .fade-up {
+    animation: fade-up 0.6s ease-out both;
   }
 }
 
@@ -42,6 +75,17 @@
   from {
     opacity: 0;
     transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
