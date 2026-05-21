@@ -7,7 +7,7 @@ import { cn } from "../lib/utils";
 
 const navItems = [
   { href: "/", label: "Markets" },
-  { href: "/dashboard", label: "Resolver" }
+  { href: "/dashboard", label: "Resolver" },
 ];
 
 export function Header() {
@@ -27,14 +27,13 @@ export function Header() {
       </div>
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-5 py-3">
         <Link href="/" className="group inline-flex items-center gap-3">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-500/10 text-sm font-semibold text-cyan-200">
-            DP
-          </span>
           <div className="leading-tight">
             <p className="text-sm font-semibold tracking-wide text-slate-100 group-hover:text-cyan-200">
               DarkPool Markets
             </p>
-            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Confidential Prediction Exchange</p>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+              Confidential Prediction Exchange
+            </p>
           </div>
         </Link>
 
@@ -49,7 +48,7 @@ export function Header() {
                   "rounded-lg px-3 py-2 text-sm font-medium transition",
                   isActive
                     ? "bg-cyan-500/15 text-cyan-200 ring-1 ring-cyan-400/25"
-                    : "text-slate-300 hover:bg-slate-800/70 hover:text-slate-100"
+                    : "text-slate-300 hover:bg-slate-800/70 hover:text-slate-100",
                 )}
               >
                 {item.label}
@@ -70,7 +69,7 @@ export function Header() {
               onClick={() => logout()}
               className={cn(
                 "rounded-lg border border-cyan-400/35 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-100",
-                "transition hover:border-cyan-300/60 hover:bg-cyan-500/20"
+                "transition hover:border-cyan-300/60 hover:bg-cyan-500/20",
               )}
             >
               {shortAddress(user.wallet.address)}

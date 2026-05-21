@@ -31,7 +31,7 @@ export default async function DashboardPage() {
       {loadError && (
         <div className="panel mb-6 border-amber-700/40 bg-amber-900/10 p-5">
           <p className="text-sm font-medium text-amber-200">Could not load markets</p>
-          <p className="mt-2 text-xs text-amber-300/90">{loadError}</p>
+          {/* <p className="mt-2 text-xs text-amber-300/90">{loadError}</p> */}
         </div>
       )}
 
