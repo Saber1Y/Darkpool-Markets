@@ -34,7 +34,8 @@ export function ResolveMarket({ market, currentStatus }: ResolveMarketProps) {
       await writeContractAsync({
         address: market.marketAddress,
         abi: predictionMarketAbi,
-        functionName: "closeMarket"
+        functionName: "closeMarket",
+        gas: 3_000_000n
       });
     } catch (error) {
       console.error("Failed to close market:", error);
@@ -47,7 +48,8 @@ export function ResolveMarket({ market, currentStatus }: ResolveMarketProps) {
         address: market.marketAddress,
         abi: predictionMarketAbi,
         functionName: "resolveMarket",
-        args: [outcomeYes]
+        args: [outcomeYes],
+        gas: 3_000_000n
       });
     } catch (error) {
       console.error("Failed to resolve market:", error);
@@ -60,7 +62,8 @@ export function ResolveMarket({ market, currentStatus }: ResolveMarketProps) {
         address: market.marketAddress,
         abi: predictionMarketAbi,
         functionName: "publishSnapshot",
-        args: [parseInt(confidenceYesPct), parseInt(deltaBps24h), signalStrength]
+        args: [parseInt(confidenceYesPct), parseInt(deltaBps24h), signalStrength],
+        gas: 3_000_000n
       });
     } catch (error) {
       console.error("Failed to publish snapshot:", error);

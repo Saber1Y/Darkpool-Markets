@@ -38,7 +38,8 @@ export function ClaimPayout({ market, isCreator, currentStatus }: ClaimPayoutPro
       await writeContractAsync({
         address: market.marketAddress,
         abi: predictionMarketAbi,
-        functionName: "claim"
+        functionName: "claim",
+        gas: 3_000_000n
       });
       setClaimResult("Claim submitted! Check your position.");
     } catch (error) {
@@ -63,7 +64,8 @@ export function ClaimPayout({ market, isCreator, currentStatus }: ClaimPayoutPro
         address: market.marketAddress,
         abi: predictionMarketAbi,
         functionName: "settleClaim",
-        args: [settleAddress as `0x${string}`, settleWinner]
+        args: [settleAddress as `0x${string}`, settleWinner],
+        gas: 3_000_000n
       });
       setSettleResult("Settlement transaction submitted.");
     } catch (error) {
