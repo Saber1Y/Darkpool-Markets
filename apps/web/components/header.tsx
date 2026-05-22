@@ -38,9 +38,6 @@ export function Header() {
       </motion.div>
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-5 py-3">
         <Link href="/" className="group inline-flex items-center gap-3">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-500/10 text-sm font-semibold text-cyan-200">
-            DP
-          </span>
           <div className="leading-tight">
             <p className="text-sm font-semibold tracking-wide text-slate-100 group-hover:text-cyan-200">
               DarkPool Markets
