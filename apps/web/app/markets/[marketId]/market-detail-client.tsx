@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useAccount } from "wagmi";
+import { motion } from "framer-motion";
 import { signalLabel, statusLabel } from "../../../lib/contracts/markets";
 import { formatDateFromUnix, shortAddress } from "../../../lib/format";
 import { BetPanel } from "../../../components/bet-panel";
@@ -23,7 +24,20 @@ export function MarketDetailClient({ market }: Props) {
   const noPct = Math.max(0, 100 - yesPct);
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-5 py-8 md:py-10">
+    <motion.main
+      initial="hidden"
+      animate="show"
+      variants={{
+        hidden: { opacity: 0 },
+        show: {
+          opacity: 1,
+          transition: {
+            staggerChildren: 0.08
+          }
+        }
+      }}
+      className="mx-auto w-full max-w-7xl px-5 py-8 md:py-10"
+    >
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/"
@@ -47,16 +61,34 @@ export function MarketDetailClient({ market }: Props) {
         </div>
       </div>
 
-      <div className="mb-6 panel p-6">
+      <motion.div
+        variants={{
+          hidden: { opacity: 0, y: 14 },
+          show: { opacity: 1, y: 0 }
+        }}
+        transition={{ duration: 0.34, ease: "easeOut" }}
+        className="mb-6 panel p-6"
+      >
         <h1 className="max-w-5xl text-2xl font-semibold leading-tight text-slate-100 md:text-3xl">{market.question}</h1>
         <p className="mt-3 text-sm text-slate-400">
           Market metadata: <span className="font-mono text-xs text-slate-300">{market.metadataURI || "none"}</span>
         </p>
-      </div>
+      </motion.div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <section className="space-y-6">
-          <div className="panel p-6">
+        <motion.section
+          variants={{
+            hidden: { opacity: 0, y: 14 },
+            show: { opacity: 1, y: 0 }
+          }}
+          transition={{ duration: 0.34, ease: "easeOut" }}
+          className="space-y-6"
+        >
+          <motion.div
+            whileHover={{ y: -2 }}
+            transition={{ type: "spring", stiffness: 280, damping: 22 }}
+            className="panel p-6"
+          >
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-100">Probability Snapshot</h2>
               <p className="text-xs uppercase tracking-[0.12em] text-slate-500">
@@ -65,15 +97,24 @@ export function MarketDetailClient({ market }: Props) {
               </p>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-slate-800/90">
-              <div className="h-full rounded-full bg-emerald-500/90" style={{ width: `${yesPct.toFixed(2)}%` }} />
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${yesPct.toFixed(2)}%` }}
+                transition={{ duration: 0.55, ease: "easeOut", delay: 0.12 }}
+                className="h-full rounded-full bg-emerald-500/90"
+              />
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3">
               <OutcomeChip label="Yes" value={yesPct.toFixed(2)} tone="yes" />
               <OutcomeChip label="No" value={noPct.toFixed(2)} tone="no" />
             </div>
-          </div>
+          </motion.div>
 
-          <div className="panel p-6">
+          <motion.div
+            whileHover={{ y: -2 }}
+            transition={{ type: "spring", stiffness: 280, damping: 22 }}
+            className="panel p-6"
+          >
             <h3 className="mb-4 text-base font-semibold text-slate-100">Market Intel</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               <DetailRow label="Participants" value={market.participantCount.toString()} />
@@ -94,9 +135,13 @@ export function MarketDetailClient({ market }: Props) {
               <DetailRow label="Creator" value={`${shortAddress(market.creator)}${isCreator ? " (you)" : ""}`} />
               <DetailRow label="Contract" value={shortAddress(market.marketAddress)} />
             </div>
-          </div>
+          </motion.div>
 
-          <div className="panel p-6">
+          <motion.div
+            whileHover={{ y: -2 }}
+            transition={{ type: "spring", stiffness: 280, damping: 22 }}
+            className="panel p-6"
+          >
             <h3 className="mb-3 text-base font-semibold text-slate-100">Contract Addresses</h3>
             <div className="space-y-2 text-xs text-slate-300">
               <p className="rounded-lg border border-slate-700/70 bg-slate-900/80 px-3 py-2 font-mono">
@@ -106,33 +151,52 @@ export function MarketDetailClient({ market }: Props) {
                 Creator: {market.creator}
               </p>
             </div>
-          </div>
-        </section>
+          </motion.div>
+        </motion.section>
 
-        <aside className="space-y-6">
-          <div className="panel sticky top-20 p-5">
+        <motion.aside
+          variants={{
+            hidden: { opacity: 0, y: 14 },
+            show: { opacity: 1, y: 0 }
+          }}
+          transition={{ duration: 0.34, ease: "easeOut" }}
+          className="space-y-6"
+        >
+          <motion.div
+            whileHover={{ y: -1 }}
+            transition={{ type: "spring", stiffness: 280, damping: 24 }}
+            className="panel sticky top-20 p-5"
+          >
             <h2 className="mb-4 text-base font-semibold text-slate-100">
               {currentStatus === 0n ? "Trade This Market" : "Your Position"}
             </h2>
             <BetPanel market={market} currentStatus={currentStatus} />
-          </div>
+          </motion.div>
 
           {isCreator && (currentStatus === 0n || currentStatus === 1n) && (
-            <div className="panel p-5">
+            <motion.div
+              whileHover={{ y: -1 }}
+              transition={{ type: "spring", stiffness: 280, damping: 24 }}
+              className="panel p-5"
+            >
               <h2 className="mb-4 text-base font-semibold text-slate-100">Manage Market</h2>
               <ResolveMarket market={market} currentStatus={currentStatus} />
-            </div>
+            </motion.div>
           )}
 
           {currentStatus === 2n && (
-            <div className="panel p-5">
+            <motion.div
+              whileHover={{ y: -1 }}
+              transition={{ type: "spring", stiffness: 280, damping: 24 }}
+              className="panel p-5"
+            >
               <h2 className="mb-4 text-base font-semibold text-slate-100">Claim & Settlement</h2>
               <ClaimPayout market={market} isCreator={isCreator} currentStatus={currentStatus} />
-            </div>
+            </motion.div>
           )}
-        </aside>
+        </motion.aside>
       </div>
-    </main>
+    </motion.main>
   );
 }
 
