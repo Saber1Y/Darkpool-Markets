@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { MarketView, signalLabel, statusLabel } from "../lib/contracts/markets";
 import { formatDateFromUnix, formatSignedBps, shortAddress } from "../lib/format";
 
@@ -14,69 +17,84 @@ export function MarketCard({ market }: MarketCardProps) {
   const signal = signalLabel(market.signalStrength);
 
   return (
-    <Link
-      href={`/markets/${market.marketId.toString()}`}
-      className="group panel block overflow-hidden p-5 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-400/30"
+    <motion.article
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.32, ease: "easeOut" }}
+      whileHover={{ y: -3 }}
+      className="h-full"
     >
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <span className="rounded-full border border-slate-700/80 bg-slate-900/80 px-2.5 py-1 text-[11px] uppercase tracking-[0.12em] text-slate-300">
-          Event #{market.marketId.toString()}
-        </span>
-        <div className="flex items-center gap-2">
-          <span className="rounded-full border border-slate-700/70 bg-slate-900 px-2.5 py-1 text-[11px] uppercase tracking-[0.12em] text-slate-400">
-            {signal}
+      <Link
+        href={`/markets/${market.marketId.toString()}`}
+        className="group panel block h-full overflow-hidden p-5 transition duration-200 hover:border-cyan-400/30"
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <span className="rounded-full border border-slate-700/80 bg-slate-900/80 px-2.5 py-1 text-[11px] uppercase tracking-[0.12em] text-slate-300">
+            Event #{market.marketId.toString()}
           </span>
-          <span className={`rounded-full px-2.5 py-1 text-[11px] uppercase tracking-[0.12em] ${statusVariant.bg} ${statusVariant.text}`}>
-            {statusLabel(market.status)}
-          </span>
-        </div>
-      </div>
-
-      <h2 className="line-clamp-2 text-lg font-semibold leading-snug text-slate-100 group-hover:text-cyan-100">
-        {market.question}
-      </h2>
-      <p className="mt-1.5 text-xs text-slate-500">
-        Encrypted position sizing. Public confidence only.
-      </p>
-
-      <div className="mt-5">
-        <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
-          <span>Market Probability</span>
-          <span>{delta} 24h</span>
-        </div>
-        <div className="h-2.5 overflow-hidden rounded-full bg-slate-800/80">
-          <div
-            className="h-full rounded-full bg-emerald-500/90 transition-all"
-            style={{ width: `${yesPct.toFixed(2)}%` }}
-          />
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-left">
-            <p className="text-[11px] uppercase tracking-[0.1em] text-emerald-300">Yes</p>
-            <p className="text-base font-semibold text-emerald-100">{yesPct.toFixed(2)}%</p>
-          </div>
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-left">
-            <p className="text-[11px] uppercase tracking-[0.1em] text-rose-300">No</p>
-            <p className="text-base font-semibold text-rose-100">{noPct.toFixed(2)}%</p>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-slate-700/70 bg-slate-900 px-2.5 py-1 text-[11px] uppercase tracking-[0.12em] text-slate-400">
+              {signal}
+            </span>
+            <span className={`rounded-full px-2.5 py-1 text-[11px] uppercase tracking-[0.12em] ${statusVariant.bg} ${statusVariant.text}`}>
+              {statusLabel(market.status)}
+            </span>
           </div>
         </div>
-      </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-x-3 gap-y-2 text-sm text-slate-300">
-        <p className="text-slate-500">
-          Participants
+        <h2 className="line-clamp-2 text-lg font-semibold leading-snug text-slate-100 group-hover:text-cyan-100">
+          {market.question}
+        </h2>
+        <p className="mt-1.5 text-xs text-slate-500">
+          Encrypted position sizing. Public confidence only.
         </p>
-        <p className="text-right font-medium text-slate-200">{market.participantCount.toString()}</p>
-        <p className="text-slate-500">
-          Deadline
-        </p>
-        <p className="text-right font-medium text-slate-200">{formatDateFromUnix(market.deadline)}</p>
-        <p className="text-slate-500">
-          Creator
-        </p>
-        <p className="text-right font-medium text-slate-200">{shortAddress(market.creator)}</p>
-      </div>
-    </Link>
+
+        <div className="mt-5">
+          <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
+            <span>Market Probability</span>
+            <span>{delta} 24h</span>
+          </div>
+          <motion.div
+            initial={{ scaleX: 0 }}
+            whileInView={{ scaleX: 1 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.4, delay: 0.08, ease: "easeOut" }}
+            className="h-2.5 overflow-hidden rounded-full bg-slate-800/80 origin-left"
+          >
+            <div
+              className="h-full rounded-full bg-emerald-500/90 transition-all"
+              style={{ width: `${yesPct.toFixed(2)}%` }}
+            />
+          </motion.div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-left">
+              <p className="text-[11px] uppercase tracking-[0.1em] text-emerald-300">Yes</p>
+              <p className="text-base font-semibold text-emerald-100">{yesPct.toFixed(2)}%</p>
+            </div>
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-left">
+              <p className="text-[11px] uppercase tracking-[0.1em] text-rose-300">No</p>
+              <p className="text-base font-semibold text-rose-100">{noPct.toFixed(2)}%</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-x-3 gap-y-2 text-sm text-slate-300">
+          <p className="text-slate-500">
+            Participants
+          </p>
+          <p className="text-right font-medium text-slate-200">{market.participantCount.toString()}</p>
+          <p className="text-slate-500">
+            Deadline
+          </p>
+          <p className="text-right font-medium text-slate-200">{formatDateFromUnix(market.deadline)}</p>
+          <p className="text-slate-500">
+            Creator
+          </p>
+          <p className="text-right font-medium text-slate-200">{shortAddress(market.creator)}</p>
+        </div>
+      </Link>
+    </motion.article>
   );
 }
 
