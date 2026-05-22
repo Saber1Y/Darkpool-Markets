@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { isAddress } from "viem";
 import { predictionMarketAbi } from "../lib/contracts/abi";
 import type { MarketView } from "../lib/contracts/markets";
@@ -22,9 +22,20 @@ export function ClaimPayout({ market, isCreator, currentStatus }: ClaimPayoutPro
   const [settleResult, setSettleResult] = useState<string | null>(null);
   const [settleAddress, setSettleAddress] = useState("");
   const [settleWinner, setSettleWinner] = useState(market.resolvedOutcome);
+  const settleAddressValid = isAddress(settleAddress);
+  const settleAddressArg = (settleAddressValid
+    ? settleAddress
+    : "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
   const { writeContractAsync, isPending, data: txHash } = useWriteContract();
   const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash });
+  const { data: isAlreadySettled, refetch: refetchSettleStatus } = useReadContract({
+    address: market.marketAddress,
+    abi: predictionMarketAbi,
+    functionName: "claimSettled",
+    args: [settleAddressArg],
+    query: { enabled: settleAddressValid }
+  });
 
   useEffect(() => {
     if (address && !settleAddress) {
@@ -52,8 +63,12 @@ export function ClaimPayout({ market, isCreator, currentStatus }: ClaimPayoutPro
   const handleSettleClaim = async () => {
     if (!isCreator) return;
 
-    if (!isAddress(settleAddress)) {
+    if (!settleAddressValid) {
       setSettleResult("Settle failed: provide a valid recipient address.");
+      return;
+    }
+    if (isAlreadySettled) {
+      setSettleResult("This address is already settled for this market.");
       return;
     }
 
@@ -68,6 +83,7 @@ export function ClaimPayout({ market, isCreator, currentStatus }: ClaimPayoutPro
         gas: 3_000_000n
       });
       setSettleResult("Settlement transaction submitted.");
+      await refetchSettleStatus();
     } catch (error) {
       setSettleResult(`Settle failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
@@ -108,6 +124,9 @@ export function ClaimPayout({ market, isCreator, currentStatus }: ClaimPayoutPro
       {isCreator && (
         <div className="mt-5 rounded-lg border border-slate-800 bg-slate-900/70 p-4">
           <p className="text-sm font-medium text-slate-200">Settle a User Claim (Creator)</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Settle can only run once per address per market.
+          </p>
 
           <div className="mt-3 grid gap-3">
             <label className="text-xs text-slate-400">
@@ -121,6 +140,12 @@ export function ClaimPayout({ market, isCreator, currentStatus }: ClaimPayoutPro
             </label>
           </div>
 
+          {settleAddressValid && (
+            <p className={`mt-2 text-xs ${isAlreadySettled ? "text-amber-300" : "text-slate-400"}`}>
+              Settlement status: {isAlreadySettled ? "Already settled" : "Not settled yet"}
+            </p>
+          )}
+
           <label className="mt-3 flex items-center gap-2 text-xs text-slate-300">
             <input
               type="checkbox"
@@ -133,7 +158,7 @@ export function ClaimPayout({ market, isCreator, currentStatus }: ClaimPayoutPro
 
           <button
             onClick={handleSettleClaim}
-            disabled={isPending || isConfirming || isSettling}
+            disabled={isPending || isConfirming || isSettling || Boolean(isAlreadySettled)}
             className="mt-4 rounded-lg border border-emerald-700 bg-emerald-900/30 px-4 py-2 text-sm font-medium text-emerald-200 transition hover:bg-emerald-900/50 disabled:opacity-50"
           >
             {isSettling ? <LoadingSpinner size="sm" /> : "Settle Claim"}
